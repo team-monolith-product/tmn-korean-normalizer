@@ -1,0 +1,29 @@
+[
+  {
+    "id": 11,
+    "name": "명사 과다 사용",
+    "severity": "S2",
+    "kind": "metric",
+    "metric": "noun_ratio",
+    "bound": { "gt": 0.35 },
+    "guidance": "명사구를 동사 표현으로 푼다. -기, -음 명사화를 직접 활용형으로 되돌린다."
+  },
+  {
+    "id": 12,
+    "name": "동사·형용사 빈곤",
+    "severity": "S2",
+    "kind": "metric",
+    "metric": "verb_adjective_ratio",
+    "bound": { "lt": 0.25 },
+    "guidance": "정적인 명사 서술을 능동 동사로 바꾸고 서술 형용사를 늘린다."
+  },
+  {
+    "id": 13,
+    "name": "품사 N-gram 단조로움",
+    "severity": "S2",
+    "kind": "metric",
+    "metric": "pos_trigram_diversity",
+    "bound": { "lt": 0.5 },
+    "guidance": "명사-의-명사 연쇄를 끊고 문장 구조를 번갈아 쓴다."
+  }
+]
