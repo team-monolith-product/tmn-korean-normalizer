@@ -36,14 +36,6 @@ class Segment:
 
 
 @dataclass(frozen=True)
-class Piece:
-    """교정 대상 조각. protected면 원문 그대로 둔다."""
-
-    text: str
-    protected: bool
-
-
-@dataclass(frozen=True)
 class MaskMap:
     """검출·교정에서 제외할 구간.
 
@@ -90,23 +82,14 @@ def merge_spans(spans: Iterable[Span]) -> tuple[Span, ...]:
     return tuple(merged)
 
 
-def partition(text: str) -> tuple[Piece, ...]:
-    """보호 구간을 기준으로 텍스트를 조각낸다.
-
-    치환을 보호되지 않은 조각 안에서만 수행하면 경계를 넘는 매치가 아예
-    만들어지지 않는다. 매치마다 구간이 겹치는지 되묻지 않아도 된다.
-    """
+def protected_spans(text: str) -> tuple[Span, ...]:
+    """교정이 건드리면 안 되는 구간. 코드·URL과 직접 인용을 합친다."""
     mask = build_mask(text)
-    pieces: list[Piece] = []
-    cursor = 0
-    for span in merge_spans(mask.detect_free + mask.fix_free):
-        if cursor < span.start:
-            pieces.append(Piece(text[cursor : span.start], protected=False))
-        pieces.append(Piece(text[span.start : span.end], protected=True))
-        cursor = span.end
-    if cursor < len(text):
-        pieces.append(Piece(text[cursor:], protected=False))
-    return tuple(pieces)
+    return merge_spans(mask.detect_free + mask.fix_free)
+
+
+def overlaps(spans: tuple[Span, ...], start: int, end: int) -> bool:
+    return any(span.start < end and start < span.end for span in spans)
 
 
 def _split(text: str, boundary: re.Pattern[str]) -> tuple[Segment, ...]:

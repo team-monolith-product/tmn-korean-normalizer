@@ -4,7 +4,8 @@ from korean_normalizer.segment import (
     Span,
     build_mask,
     merge_spans,
-    partition,
+    overlaps,
+    protected_spans,
     scrub,
     split_paragraphs,
     split_sentences,
@@ -56,22 +57,22 @@ def test_scrub_preserves_newlines():
 
 def test_direct_quotes_are_protected_from_fixes_but_still_detected():
     text = '그는 "분석되어집니다"라고 적었다.'
-    assert '"분석되어집니다"' in [
-        piece.text for piece in partition(text) if piece.protected
-    ]
+    quote = text.index('"')
+    assert overlaps(protected_spans(text), quote, quote + 1)
     assert "분석되어집니다" in scrub(text, build_mask(text))
 
 
-def test_partition_covers_the_whole_text():
-    text = "설명입니다. `코드`와 https://example.com 링크."
-    assert "".join(piece.text for piece in partition(text)) == text
+def test_protected_spans_cover_code_and_urls():
+    text = "`코드` 설명 https://a.b"
+    spans = protected_spans(text)
+    assert [text[span.start : span.end] for span in spans] == ["`코드`", "https://a.b"]
 
 
-def test_partition_marks_code_and_urls_protected():
-    protected = [
-        piece.text for piece in partition("`코드` 설명 https://a.b") if piece.protected
-    ]
-    assert protected == ["`코드`", "https://a.b"]
+def test_overlaps_is_exclusive_at_the_boundary():
+    spans = (Span(5, 10),)
+    assert overlaps(spans, 4, 6) is True
+    assert overlaps(spans, 10, 12) is False
+    assert overlaps(spans, 3, 5) is False
 
 
 def test_merge_spans_collapses_overlaps():

@@ -7,12 +7,13 @@
 from __future__ import annotations
 
 import difflib
+from collections import Counter
 from dataclasses import asdict, dataclass
 
 from .detect import analyze_document
 from .josa import agree
 from .rules import AutoFix, Rule, load_rules
-from .segment import Document, partition
+from .segment import Document, overlaps, protected_spans
 
 MAX_PASSES = 3
 
@@ -48,37 +49,39 @@ def _expand(entry: AutoFix, match) -> str:
 
 
 def _substitute(text: str, entry: AutoFix) -> tuple[str, int]:
+    """보호 구간과 겹치는 매치를 건너뛰며 한 번 치환한다.
+
+    보호 구간을 기준으로 텍스트를 미리 조각내면 안 된다. 조각 경계를
+    ^ $ 앵커가 줄 끝으로 착각해 줄 중간의 콜론까지 고친다.
+    sub는 입력 문자열 기준 오프셋을 주므로 같은 문자열에서 뜬 구간과
+    좌표계가 맞는다. 패스가 끝나면 구간을 다시 뜬다.
+    """
+    protected = protected_spans(text)
     replaced = 0
 
     def render(match) -> str:
         nonlocal replaced
+        if overlaps(protected, match.start(), match.end()):
+            return match.group(0)
         replaced += 1
         return _expand(entry, match)
 
     return entry.pattern.sub(render, text), replaced
 
 
-def _run(text: str, rules: list[Rule], counts: dict[int, int]) -> str:
+def _run(text: str, rules: list[Rule]) -> tuple[str, Counter[int]]:
     """한 규칙의 교정이 다른 규칙의 대상을 만들 수 있어 안정될 때까지 돈다."""
+    counts: Counter[int] = Counter()
     current = text
     for _ in range(MAX_PASSES):
         before = current
         for rule in rules:
             for entry in rule.autofix:
                 current, replaced = _substitute(current, entry)
-                if replaced:
-                    counts[rule.id] = counts.get(rule.id, 0) + replaced
+                counts[rule.id] += replaced
         if current == before:
             break
-    return current
-
-
-def _fix_chunk(chunk: str, rules: list[Rule], counts: dict[int, int]) -> str:
-    """보호 조각은 그대로 두고 나머지에만 규칙을 적용한다."""
-    return "".join(
-        piece.text if piece.protected else _run(piece.text, rules, counts)
-        for piece in partition(chunk)
-    )
+    return current, +counts
 
 
 def _autofix_targets(document: Document, rules: tuple[Rule, ...]):
@@ -101,20 +104,18 @@ def apply(text: str, rules: tuple[Rule, ...] | None = None) -> FixResult:
     document = Document.of(text)
     document_rules, paragraph_rules = _autofix_targets(document, rules)
 
-    counts: dict[int, int] = {}
+    counts: Counter[int] = Counter()
     pieces: list[str] = []
     cursor = 0
 
     for index, paragraph in enumerate(document.paragraphs):
         active = sorted(document_rules | paragraph_rules.get(index, set()))
-        pieces.append(text[cursor : paragraph.start])
-        pieces.append(
-            _fix_chunk(
-                text[paragraph.start : paragraph.end],
-                [by_id[rule_id] for rule_id in active],
-                counts,
-            )
+        fixed, chunk_counts = _run(
+            text[paragraph.start : paragraph.end],
+            [by_id[rule_id] for rule_id in active],
         )
+        pieces.extend((text[cursor : paragraph.start], fixed))
+        counts += chunk_counts
         cursor = paragraph.end
     pieces.append(text[cursor:])
 

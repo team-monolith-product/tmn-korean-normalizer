@@ -82,6 +82,14 @@ def test_direct_quote_is_never_touched():
     assert "검증됩니다" in result
 
 
+def test_anchored_rules_respect_real_line_ends():
+    """보호 구간을 기준으로 조각내면 ^ $ 앵커가 조각 끝을 줄 끝으로 착각한다."""
+    text = "주요 특징:\n1. 속도\n\n설치 방법은 다음과 같습니다: `npm i` 를 실행하세요."
+    result = fixed(text)
+    assert "주요 특징\n" in result
+    assert "다음과 같습니다: `npm i`" in result
+
+
 def test_code_block_is_never_touched():
     text = "설명이 필요합니다.\n\n```py\n# 분석되어집니다\n```"
     assert "# 분석되어집니다" in fixed(text)
