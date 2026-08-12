@@ -9,7 +9,7 @@ from __future__ import annotations
 import difflib
 from dataclasses import asdict, dataclass
 
-from .detect import analyze
+from .detect import analyze_document
 from .josa import agree
 from .rules import AutoFix, Rule, load_rules
 from .segment import Document, partition
@@ -81,30 +81,31 @@ def _fix_chunk(chunk: str, rules: list[Rule], counts: dict[int, int]) -> str:
     )
 
 
-def _autofix_targets(text: str, rules: tuple[Rule, ...]):
+def _autofix_targets(document: Document, rules: tuple[Rule, ...]):
     """자동 교정 규칙을 문서 단위와 문단 단위로 나눈다."""
-    document: set[int] = set()
-    paragraph: dict[int, set[int]] = {}
-    for finding in analyze(text, rules).findings:
+    everywhere: set[int] = set()
+    per_paragraph: dict[int, set[int]] = {}
+    for finding in analyze_document(document, rules).findings:
         if not finding.autofixable:
             continue
         if finding.location is None:
-            document.add(finding.rule_id)
+            everywhere.add(finding.rule_id)
         else:
-            paragraph.setdefault(finding.location.index, set()).add(finding.rule_id)
-    return document, paragraph
+            per_paragraph.setdefault(finding.location.index, set()).add(finding.rule_id)
+    return everywhere, per_paragraph
 
 
 def apply(text: str, rules: tuple[Rule, ...] | None = None) -> FixResult:
     rules = rules if rules is not None else load_rules()
     by_id = {rule.id: rule for rule in rules}
-    document_rules, paragraph_rules = _autofix_targets(text, rules)
+    document = Document.of(text)
+    document_rules, paragraph_rules = _autofix_targets(document, rules)
 
     counts: dict[int, int] = {}
     pieces: list[str] = []
     cursor = 0
 
-    for index, paragraph in enumerate(Document.of(text).paragraphs):
+    for index, paragraph in enumerate(document.paragraphs):
         active = sorted(document_rules | paragraph_rules.get(index, set()))
         pieces.append(text[cursor : paragraph.start])
         pieces.append(

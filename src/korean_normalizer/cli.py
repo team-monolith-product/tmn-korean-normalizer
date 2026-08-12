@@ -89,26 +89,26 @@ def _fix(args: argparse.Namespace) -> int:
 
 
 def _rules(args: argparse.Namespace) -> int:
-    rows = [
-        {
-            "id": rule.id,
-            "name": rule.name,
-            "category": rule.category,
-            "severity": rule.severity,
-            "kind": rule.kind,
-            "autofix": rule.has_autofix,
-        }
-        for rule in load_rules()
-    ]
     if args.format == "json":
+        rows = [
+            {
+                "id": rule.id,
+                "name": rule.name,
+                "category": rule.category,
+                "severity": rule.severity,
+                "kind": rule.kind,
+                "tier": rule.tier,
+                "autofix": rule.has_autofix,
+            }
+            for rule in load_rules()
+        ]
         print(json.dumps(rows, ensure_ascii=False, indent=2))
-    else:
-        for row in rows:
-            tier = "A" if row["autofix"] else "B"
-            print(
-                f"{row['id']:>2} [{row['severity']}] tier {tier}"
-                f" {row['name']} ({row['category']}/{row['kind']})"
-            )
+        return 0
+    for rule in load_rules():
+        print(
+            f"{rule.id:>2} [{rule.severity}] tier {rule.tier}"
+            f" {rule.name} ({rule.category}/{rule.kind})"
+        )
     return 0
 
 

@@ -118,3 +118,50 @@ def test_metric_rules_cannot_carry_autofix():
 def test_kind_is_derived_from_the_type():
     kinds = {rule.kind for rule in load_rules()}
     assert kinds == {"regex", "metric"}
+
+
+@pytest.mark.parametrize(
+    "bound",
+    [{"gtt": 0.4}, {}, {"gt": 0.4, "lt": 0.9}],
+    ids=["typo", "empty", "two-operators"],
+)
+def test_rejects_malformed_bound(bound):
+    """연산자 오타나 빈 bound가 통과하면 그 규칙이 모든 문서에서 발화한다."""
+    with pytest.raises(RuleError):
+        build_rule(
+            {
+                "id": 99,
+                "name": "x",
+                "severity": "S2",
+                "kind": "metric",
+                "metric": "comma_sentence_ratio",
+                "bound": bound,
+                "guidance": "g",
+            },
+            "test",
+        )
+
+
+def test_rejects_unknown_metric_at_load_time():
+    with pytest.raises(RuleError, match="unknown metric"):
+        build_rule(
+            {
+                "id": 99,
+                "name": "x",
+                "severity": "S2",
+                "kind": "metric",
+                "metric": "vibes_per_sentence",
+                "bound": {"gt": 0.4},
+                "guidance": "g",
+            },
+            "test",
+        )
+
+
+def test_tier_matches_the_documented_taxonomy():
+    by_tier: dict[str, set[int]] = {}
+    for rule in load_rules():
+        by_tier.setdefault(rule.tier, set()).add(rule.id)
+    assert by_tier["A"] == TIER_A
+    assert by_tier["C"] == {11, 12, 13}
+    assert by_tier["B"] == set(range(1, 41)) - TIER_A - {11, 12, 13}

@@ -62,6 +62,16 @@ def registered() -> tuple[str, ...]:
     return tuple(sorted(_REGISTRY))
 
 
+ANALYZER_METRICS = frozenset(
+    {"noun_ratio", "verb_adjective_ratio", "pos_trigram_diversity"}
+)
+
+
+def needs_analyzer(name: str) -> bool:
+    """형태소 분석기가 있어야 계산되는 지표인지. Tier 판정의 유일한 근거다."""
+    return name in ANALYZER_METRICS
+
+
 @metric("comma_sentence_ratio")
 def _comma_sentence_ratio(context: MetricContext) -> float | None:
     if len(context.sentences) < MIN_SENTENCES:

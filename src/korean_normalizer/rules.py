@@ -10,12 +10,20 @@ from __future__ import annotations
 import json
 import re
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import lru_cache
 from importlib import resources
 
+from . import metrics
+
 SEVERITIES = ("S1", "S2", "S3")
 SCOPES = ("document", "paragraph")
+COMPARATORS = {
+    "gt": lambda value, limit: value > limit,
+    "gte": lambda value, limit: value >= limit,
+    "lt": lambda value, limit: value < limit,
+    "lte": lambda value, limit: value <= limit,
+}
 RULE_FILES = (
     "punctuation.json",
     "spacing.json",
@@ -28,6 +36,17 @@ RULE_FILES = (
 
 class RuleError(ValueError):
     """규칙 정의가 스키마를 위반했을 때."""
+
+
+@dataclass(frozen=True)
+class Bound:
+    """지표 경계. 연산자를 로드 시점에 검증해 오타가 조용히 통과하지 못하게 한다."""
+
+    operator: str
+    limit: float
+
+    def breached_by(self, value: float) -> bool:
+        return COMPARATORS[self.operator](value, self.limit)
 
 
 @dataclass(frozen=True)
@@ -68,6 +87,11 @@ class RegexRule(BaseRule):
         return bool(self.autofix)
 
     @property
+    def tier(self) -> str:
+        """A는 자동 교정, C는 형태소 분석기 필요, B는 검출만."""
+        return "A" if self.autofix else "B"
+
+    @property
     def kind(self) -> str:
         """표시·직렬화용 이름. 분기는 타입으로 한다."""
         return "regex"
@@ -76,7 +100,11 @@ class RegexRule(BaseRule):
 @dataclass(frozen=True)
 class MetricRule(BaseRule):
     metric: str
-    bound: dict[str, float] = field(default_factory=dict)
+    bound: Bound
+
+    @property
+    def tier(self) -> str:
+        return "C" if metrics.needs_analyzer(self.metric) else "B"
 
     @property
     def kind(self) -> str:
@@ -86,15 +114,19 @@ class MetricRule(BaseRule):
 Rule = RegexRule | MetricRule
 
 
-def _compile(value: str | None, field_name: str, rule_id: object) -> re.Pattern | None:
-    if value is None:
-        return None
+def _compile(value: str, field_name: str, rule_id: object) -> re.Pattern[str]:
     try:
         return re.compile(value, re.MULTILINE)
     except re.error as error:
         raise RuleError(
             f"rule {rule_id}: invalid regex in {field_name}: {error}"
         ) from error
+
+
+def _compile_optional(
+    value: str | None, field_name: str, rule_id: object
+) -> re.Pattern[str] | None:
+    return None if value is None else _compile(value, field_name, rule_id)
 
 
 def _require(raw: dict, field_name: str, rule_id: object):
@@ -134,9 +166,26 @@ def _regex_rule(raw: dict, common: dict, rule_id: object) -> RegexRule:
         pattern=_compile(_require(raw, "pattern", rule_id), "pattern", rule_id),
         scope=scope,
         count=int(threshold.get("count", 1)),
-        exclude=_compile(raw.get("exclude"), "exclude", rule_id),
+        exclude=_compile_optional(raw.get("exclude"), "exclude", rule_id),
         autofix=autofix,
     )
+
+
+def _bound(raw: dict, rule_id: object) -> Bound:
+    bound = _require(raw, "bound", rule_id)
+    if len(bound) != 1:
+        raise RuleError(f"rule {rule_id}: bound must hold exactly one comparison")
+    operator, limit = next(iter(bound.items()))
+    if operator not in COMPARATORS:
+        raise RuleError(f"rule {rule_id}: unknown bound operator '{operator}'")
+    return Bound(operator=operator, limit=float(limit))
+
+
+def _metric_rule(raw: dict, common: dict, rule_id: object) -> MetricRule:
+    name = _require(raw, "metric", rule_id)
+    if name not in metrics.registered():
+        raise RuleError(f"rule {rule_id}: unknown metric '{name}'")
+    return MetricRule(**common, metric=name, bound=_bound(raw, rule_id))
 
 
 def build_rule(raw: dict, category: str) -> Rule:
@@ -146,11 +195,7 @@ def build_rule(raw: dict, category: str) -> Rule:
     if kind == "regex":
         return _regex_rule(raw, common, rule_id)
     if kind == "metric":
-        return MetricRule(
-            **common,
-            metric=_require(raw, "metric", rule_id),
-            bound=_require(raw, "bound", rule_id),
-        )
+        return _metric_rule(raw, common, rule_id)
     raise RuleError(f"rule {rule_id}: unknown kind '{kind}'")
 
 

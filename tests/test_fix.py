@@ -1,3 +1,6 @@
+import pytest
+
+from korean_normalizer.detect import analyze
 from korean_normalizer.fix import apply, diff
 
 
@@ -107,3 +110,28 @@ def test_diff_renders_unified_format():
     output = diff("가나다\n", "가나라\n", label="sample.md")
     assert "--- a/sample.md" in output
     assert "+가나라" in output
+
+
+AI_SAMPLES = [
+    "결과가 분석되어집니다. 현대 사회에 있어서 데이터가 중요하다.",
+    "해당 기능은 해당 결과를 냈다. 해당 방법을 쓴다.",
+    "날씨가 좋아서, 나갔고, 친구를 만나서, 즐거웠다.",
+    "결론적으로, 많은 사용자들이 여러 기능들을 각종 방법들로 요청했다.",
+    "회의를 진행하고 점검을 실시하며 검토를 수행한다.",
+    "이 방법은 — 널리 쓰이듯 — 효과가 있다. 설치는 다음과 같습니다:\n- a",
+]
+
+
+@pytest.mark.parametrize("sample", AI_SAMPLES)
+def test_fix_never_worsens_the_grade(sample):
+    """검출 정규식과 교정 정규식이 어긋나면 여기서 잡힌다."""
+    before = analyze(sample).counts
+    after = analyze(fixed(sample)).counts
+    assert after["S1"] <= before["S1"]
+    assert after["S2"] <= before["S2"]
+
+
+@pytest.mark.parametrize("sample", AI_SAMPLES)
+def test_fix_is_idempotent_across_samples(sample):
+    once = fixed(sample)
+    assert fixed(once) == once

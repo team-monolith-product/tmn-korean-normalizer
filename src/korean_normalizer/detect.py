@@ -127,22 +127,6 @@ def _metric_finding(rule: MetricRule, value: float) -> Finding:
     )
 
 
-_COMPARATORS = {
-    "gt": lambda value, bound: value > bound,
-    "gte": lambda value, bound: value >= bound,
-    "lt": lambda value, bound: value < bound,
-    "lte": lambda value, bound: value <= bound,
-}
-
-
-def _breaches(value: float, bound: dict[str, float]) -> bool:
-    return all(
-        _COMPARATORS[operator](value, limit)
-        for operator, limit in bound.items()
-        if operator in _COMPARATORS
-    )
-
-
 def grade(counts: dict[str, int]) -> tuple[str, str]:
     """SKILL.md의 자연도 등급 정의를 그대로 옮긴다."""
     s1 = counts.get("S1", 0)
@@ -157,8 +141,14 @@ def grade(counts: dict[str, int]) -> tuple[str, str]:
 
 
 def analyze(text: str, rules: tuple[Rule, ...] | None = None) -> Report:
+    return analyze_document(Document.of(text), rules)
+
+
+def analyze_document(
+    document: Document, rules: tuple[Rule, ...] | None = None
+) -> Report:
+    """이미 분절된 문서를 분석한다. 교정 쪽에서 문서를 두 번 만들지 않도록 나눴다."""
     rules = rules if rules is not None else load_rules()
-    document = Document.of(text)
     context = metrics.context_of(document.scrubbed)
 
     findings: list[Finding] = []
@@ -170,7 +160,7 @@ def analyze(text: str, rules: tuple[Rule, ...] | None = None) -> Report:
         value = metrics.compute(rule.metric, context)
         if value is None:
             skipped.append(f"{rule.id}:{rule.metric}")
-        elif _breaches(value, rule.bound):
+        elif rule.bound.breached_by(value):
             findings.append(_metric_finding(rule, value))
 
     findings.sort(key=lambda item: (item.severity, item.rule_id))
