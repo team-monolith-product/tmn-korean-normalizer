@@ -58,8 +58,8 @@ def test_auxiliary_verb_spacing_uniformity():
 
 
 def test_sentence_length_cv_is_low_for_uniform_sentences():
-    text = "가나다라마바사입니다. 아자차카타파하입니다. 가나다라마바사입니다. 아자차카타파하입니다."
-    assert value_of("sentence_length_cv", text) < 0.15
+    sentence = "가나다라마바사입니다."
+    assert value_of("sentence_length_cv", " ".join([sentence] * 4)) < 0.15
 
 
 def test_sentence_length_cv_needs_four_sentences():

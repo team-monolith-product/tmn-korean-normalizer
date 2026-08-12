@@ -1,7 +1,8 @@
 import pytest
 
 from korean_normalizer import metrics
-from korean_normalizer.rules import RuleError, build_rule, load_rules
+from korean_normalizer import rules as rules_module
+from korean_normalizer.rules import MetricRule, RuleError, build_rule, load_rules
 
 TIER_A = {3, 6, 7, 15, 17, 19, 27, 31, 37}
 
@@ -19,7 +20,8 @@ def test_autofix_is_limited_to_tier_a():
 def test_spacing_rules_never_autofix():
     """8~10 자동 교정은 한글 맞춤법 위반을 양산하므로 금지한다."""
     spacing = [rule for rule in load_rules() if rule.category == "spacing"]
-    assert spacing and all(not rule.has_autofix for rule in spacing)
+    assert spacing
+    assert all(not rule.has_autofix for rule in spacing)
 
 
 def test_every_metric_rule_points_at_a_registered_metric():
@@ -82,3 +84,37 @@ def test_rejects_unknown_scope():
             },
             "test",
         )
+
+
+def test_rejects_unknown_kind():
+    with pytest.raises(RuleError, match="unknown kind"):
+        build_rule(
+            {
+                "id": 99,
+                "name": "x",
+                "severity": "S1",
+                "kind": "vibes",
+                "guidance": "g",
+            },
+            "test",
+        )
+
+
+def test_rejects_duplicate_ids(monkeypatch):
+    load_rules.cache_clear()
+    monkeypatch.setattr(rules_module, "RULE_FILES", ("punctuation.json",) * 2)
+    with pytest.raises(RuleError, match="duplicate rule ids"):
+        load_rules()
+    load_rules.cache_clear()
+
+
+def test_metric_rules_cannot_carry_autofix():
+    """통계 규칙은 자동 교정 필드를 갖지 못하는 것이 타입으로 보장된다."""
+    metric_rules = [rule for rule in load_rules() if isinstance(rule, MetricRule)]
+    assert metric_rules
+    assert all(not hasattr(rule, "autofix") for rule in metric_rules)
+
+
+def test_kind_is_derived_from_the_type():
+    kinds = {rule.kind for rule in load_rules()}
+    assert kinds == {"regex", "metric"}

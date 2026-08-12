@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 
 from . import metrics
-from .rules import Rule, load_rules
-from .segment import build_mask, scrub, split_paragraphs
+from .rules import MetricRule, RegexRule, Rule, load_rules
+from .segment import Document
 
 MAX_SAMPLES = 5
 SNIPPET_PAD = 12
@@ -20,17 +20,25 @@ class Sample:
 
 
 @dataclass(frozen=True)
+class Location:
+    """검출이 일어난 문단. index는 0부터 세고 start/end는 원문 오프셋이다."""
+
+    index: int
+    start: int
+    end: int
+
+
+@dataclass(frozen=True)
 class Finding:
     rule_id: int
     name: str
     category: str
     severity: str
-    scope: str
-    count: int
-    threshold: int
     guidance: str
     autofixable: bool
-    paragraph_index: int | None = None
+    location: Location | None = None
+    count: int | None = None
+    threshold: int | None = None
     metric_value: float | None = None
     samples: tuple[Sample, ...] = ()
 
@@ -41,7 +49,7 @@ class Report:
     grade_reason: str
     counts: dict[str, int]
     findings: tuple[Finding, ...]
-    skipped_metrics: tuple[str, ...] = field(default=())
+    skipped_metrics: tuple[str, ...] = ()
 
     def to_dict(self) -> dict:
         return {
@@ -59,16 +67,8 @@ def _snippet(source: str, start: int, end: int) -> str:
     return " ".join(source[left:right].split())
 
 
-def _samples(source: str, spans: list[tuple[int, int]]) -> tuple[Sample, ...]:
-    return tuple(
-        Sample(start=start, end=end, snippet=_snippet(source, start, end))
-        for start, end in spans[:MAX_SAMPLES]
-    )
-
-
-def _matches_in(rule: Rule, haystack: str, offset: int) -> list[tuple[int, int]]:
+def _matches_in(rule: RegexRule, haystack: str, offset: int) -> list[tuple[int, int]]:
     """매치 구간을 원문 좌표로 옮겨 반환한다."""
-    assert rule.pattern is not None
     return [
         (match.start() + offset, match.end() + offset)
         for match in rule.pattern.finditer(haystack)
@@ -76,39 +76,54 @@ def _matches_in(rule: Rule, haystack: str, offset: int) -> list[tuple[int, int]]
     ]
 
 
-def _regex_findings(rule: Rule, source: str, scrubbed: str) -> list[Finding]:
+def _regex_findings(rule: RegexRule, document: Document) -> list[Finding]:
     if rule.scope == "document":
-        matches = _matches_in(rule, scrubbed, 0)
-        if len(matches) < rule.count:
+        spans = _matches_in(rule, document.scrubbed, 0)
+        if len(spans) < rule.count:
             return []
-        return [_finding(rule, source, matches, None)]
+        return [_regex_finding(rule, document.source, spans, None)]
 
     findings = []
-    for index, paragraph in enumerate(split_paragraphs(scrubbed)):
-        matches = _matches_in(rule, paragraph.text, paragraph.start)
-        if len(matches) >= rule.count:
-            findings.append(_finding(rule, source, matches, index))
+    for index, paragraph in enumerate(document.paragraphs):
+        spans = _matches_in(rule, paragraph.text, paragraph.start)
+        if len(spans) >= rule.count:
+            location = Location(index=index, start=paragraph.start, end=paragraph.end)
+            findings.append(_regex_finding(rule, document.source, spans, location))
     return findings
 
 
-def _finding(
-    rule: Rule,
+def _regex_finding(
+    rule: RegexRule,
     source: str,
     spans: list[tuple[int, int]],
-    paragraph_index: int | None,
+    location: Location | None,
 ) -> Finding:
     return Finding(
         rule_id=rule.id,
         name=rule.name,
         category=rule.category,
         severity=rule.severity,
-        scope=rule.scope,
-        count=len(spans),
-        threshold=rule.count,
         guidance=rule.guidance,
         autofixable=rule.has_autofix,
-        paragraph_index=paragraph_index,
-        samples=_samples(source, spans),
+        location=location,
+        count=len(spans),
+        threshold=rule.count,
+        samples=tuple(
+            Sample(start=start, end=end, snippet=_snippet(source, start, end))
+            for start, end in spans[:MAX_SAMPLES]
+        ),
+    )
+
+
+def _metric_finding(rule: MetricRule, value: float) -> Finding:
+    return Finding(
+        rule_id=rule.id,
+        name=rule.name,
+        category=rule.category,
+        severity=rule.severity,
+        guidance=rule.guidance,
+        autofixable=False,
+        metric_value=round(value, 4),
     )
 
 
@@ -128,32 +143,6 @@ def _breaches(value: float, bound: dict[str, float]) -> bool:
     )
 
 
-def _metric_finding(
-    rule: Rule, context: metrics.MetricContext
-) -> tuple[Finding | None, bool]:
-    assert rule.metric is not None and rule.metric_bound is not None
-    value = metrics.compute(rule.metric, context)
-    if value is None:
-        return None, True
-    if not _breaches(value, rule.metric_bound):
-        return None, False
-    return (
-        Finding(
-            rule_id=rule.id,
-            name=rule.name,
-            category=rule.category,
-            severity=rule.severity,
-            scope="document",
-            count=1,
-            threshold=1,
-            guidance=rule.guidance,
-            autofixable=False,
-            metric_value=round(value, 4),
-        ),
-        False,
-    )
-
-
 def grade(counts: dict[str, int]) -> tuple[str, str]:
     """SKILL.md의 자연도 등급 정의를 그대로 옮긴다."""
     s1 = counts.get("S1", 0)
@@ -169,20 +158,20 @@ def grade(counts: dict[str, int]) -> tuple[str, str]:
 
 def analyze(text: str, rules: tuple[Rule, ...] | None = None) -> Report:
     rules = rules if rules is not None else load_rules()
-    scrubbed = scrub(text, build_mask(text))
-    context = metrics.context_of(scrubbed)
+    document = Document.of(text)
+    context = metrics.context_of(document.scrubbed)
 
     findings: list[Finding] = []
     skipped: list[str] = []
     for rule in rules:
-        if rule.kind == "regex":
-            findings.extend(_regex_findings(rule, text, scrubbed))
+        if isinstance(rule, RegexRule):
+            findings.extend(_regex_findings(rule, document))
             continue
-        finding, was_skipped = _metric_finding(rule, context)
-        if was_skipped:
+        value = metrics.compute(rule.metric, context)
+        if value is None:
             skipped.append(f"{rule.id}:{rule.metric}")
-        elif finding is not None:
-            findings.append(finding)
+        elif _breaches(value, rule.bound):
+            findings.append(_metric_finding(rule, value))
 
     findings.sort(key=lambda item: (item.severity, item.rule_id))
     counts = {

@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 from . import fix as fix_module
-from .detect import Report, analyze
+from .detect import Finding, Report, analyze
 from .rules import load_rules
 
 SEVERITY_ORDER = ("S1", "S2", "S3")
@@ -18,6 +18,26 @@ def _read(path: str | None) -> str:
     if path is None or path == "-":
         return sys.stdin.read()
     return Path(path).read_text(encoding="utf-8")
+
+
+def _render_finding(finding: Finding) -> list[str]:
+    where = (
+        "문서 전체"
+        if finding.location is None
+        else f"문단 {finding.location.index + 1}"
+    )
+    detail = (
+        f"지표 {finding.metric_value}"
+        if finding.metric_value is not None
+        else f"{finding.count}회 (임계 {finding.threshold})"
+    )
+    marker = " [자동교정]" if finding.autofixable else ""
+    return [
+        f"[{finding.severity}] 패턴 {finding.rule_id} {finding.name}"
+        f" — {where}, {detail}{marker}",
+        f"    지침: {finding.guidance}",
+        *(f"    · {sample.snippet}" for sample in finding.samples),
+    ]
 
 
 def _render_report(report: Report) -> str:
@@ -33,24 +53,7 @@ def _render_report(report: Report) -> str:
     if not report.findings:
         lines.append("검출된 패턴이 없습니다.")
     for finding in report.findings:
-        location = (
-            f"문단 {finding.paragraph_index + 1}"
-            if finding.paragraph_index is not None
-            else "문서 전체"
-        )
-        marker = " [자동교정]" if finding.autofixable else ""
-        detail = (
-            f"지표 {finding.metric_value}"
-            if finding.metric_value is not None
-            else f"{finding.count}회 (임계 {finding.threshold})"
-        )
-        lines.append(
-            f"[{finding.severity}] 패턴 {finding.rule_id} {finding.name}"
-            f" — {location}, {detail}{marker}"
-        )
-        lines.append(f"    지침: {finding.guidance}")
-        for sample in finding.samples:
-            lines.append(f"    · {sample.snippet}")
+        lines.extend(_render_finding(finding))
     if report.skipped_metrics:
         lines.append("")
         lines.append(

@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
+
+PLACEHOLDER = "\x00"
 
 FENCED_CODE = re.compile(r"^```.*?^```", re.MULTILINE | re.DOTALL)
 INLINE_CODE = re.compile(r"`[^`\n]+`")
@@ -33,31 +36,26 @@ class Segment:
 
 
 @dataclass(frozen=True)
+class Piece:
+    """교정 대상 조각. protected면 원문 그대로 둔다."""
+
+    text: str
+    protected: bool
+
+
+@dataclass(frozen=True)
 class MaskMap:
-    """검출·교정에서 제외할 구간 집합."""
-
-    detect_free: tuple[Span, ...]
-    fix_free: tuple[Span, ...]
-
-    def is_detect_free(self, start: int, end: int) -> bool:
-        return _overlaps(self.detect_free, start, end)
-
-    def is_fix_free(self, start: int, end: int) -> bool:
-        return _overlaps(self.detect_free, start, end) or _overlaps(
-            self.fix_free, start, end
-        )
-
-
-def _overlaps(spans: tuple[Span, ...], start: int, end: int) -> bool:
-    return any(span.start < end and start < span.end for span in spans)
-
-
-def build_mask(text: str) -> MaskMap:
-    """코드·URL은 검출에서, 직접 인용은 교정에서 제외한다.
+    """검출·교정에서 제외할 구간.
 
     직접 인용을 검출까지 막으면 인용문 안의 AI 패턴을 보고할 수 없으므로
     두 층을 분리한다.
     """
+
+    detect_free: tuple[Span, ...]
+    fix_free: tuple[Span, ...]
+
+
+def build_mask(text: str) -> MaskMap:
     detect_free = tuple(
         Span(match.start(), match.end())
         for pattern in (FENCED_CODE, INLINE_CODE, URL, MARKDOWN_LINK_TARGET)
@@ -67,9 +65,6 @@ def build_mask(text: str) -> MaskMap:
         Span(match.start(), match.end()) for match in DIRECT_QUOTE.finditer(text)
     )
     return MaskMap(detect_free=detect_free, fix_free=fix_free)
-
-
-PLACEHOLDER = "\x00"
 
 
 def scrub(text: str, mask: MaskMap) -> str:
@@ -83,6 +78,35 @@ def scrub(text: str, mask: MaskMap) -> str:
             if chars[index] != "\n":
                 chars[index] = PLACEHOLDER
     return "".join(chars)
+
+
+def merge_spans(spans: Iterable[Span]) -> tuple[Span, ...]:
+    merged: list[Span] = []
+    for span in sorted(spans, key=lambda item: item.start):
+        if merged and span.start <= merged[-1].end:
+            merged[-1] = Span(merged[-1].start, max(merged[-1].end, span.end))
+        else:
+            merged.append(span)
+    return tuple(merged)
+
+
+def partition(text: str) -> tuple[Piece, ...]:
+    """보호 구간을 기준으로 텍스트를 조각낸다.
+
+    치환을 보호되지 않은 조각 안에서만 수행하면 경계를 넘는 매치가 아예
+    만들어지지 않는다. 매치마다 구간이 겹치는지 되묻지 않아도 된다.
+    """
+    mask = build_mask(text)
+    pieces: list[Piece] = []
+    cursor = 0
+    for span in merge_spans(mask.detect_free + mask.fix_free):
+        if cursor < span.start:
+            pieces.append(Piece(text[cursor : span.start], protected=False))
+        pieces.append(Piece(text[span.start : span.end], protected=True))
+        cursor = span.end
+    if cursor < len(text):
+        pieces.append(Piece(text[cursor:], protected=False))
+    return tuple(pieces)
 
 
 def _split(text: str, boundary: re.Pattern[str]) -> tuple[Segment, ...]:
@@ -113,3 +137,22 @@ def split_paragraphs(text: str) -> tuple[Segment, ...]:
 
 def split_sentences(text: str) -> tuple[Segment, ...]:
     return _split(text, SENTENCE_BOUNDARY)
+
+
+@dataclass(frozen=True)
+class Document:
+    """마스킹과 분절이 끝난 텍스트.
+
+    검출과 교정이 같은 함수로 문단을 나누므로 문단 번호가 어긋날 수 없다.
+    """
+
+    source: str
+    scrubbed: str
+    paragraphs: tuple[Segment, ...]
+
+    @classmethod
+    def of(cls, text: str) -> Document:
+        scrubbed = scrub(text, build_mask(text))
+        return cls(
+            source=text, scrubbed=scrubbed, paragraphs=split_paragraphs(scrubbed)
+        )

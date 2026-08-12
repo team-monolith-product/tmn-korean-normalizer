@@ -7,12 +7,14 @@
 from __future__ import annotations
 
 import difflib
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 from .detect import analyze
 from .josa import agree
 from .rules import AutoFix, Rule, load_rules
-from .segment import build_mask, scrub, split_paragraphs
+from .segment import Document, partition
+
+MAX_PASSES = 3
 
 
 @dataclass(frozen=True)
@@ -34,14 +36,7 @@ class FixResult:
     def to_dict(self) -> dict:
         return {
             "replacements": self.replaced,
-            "changes": [
-                {
-                    "rule_id": change.rule_id,
-                    "name": change.name,
-                    "replacements": change.replacements,
-                }
-                for change in self.changes
-            ],
+            "changes": [asdict(change) for change in self.changes],
         }
 
 
@@ -49,88 +44,82 @@ def _expand(entry: AutoFix, match) -> str:
     head = match.expand(entry.replacement)
     if entry.josa_group is None:
         return head
-    josa = match.group(entry.josa_group) or ""
-    return head + agree(head, josa)
+    return head + agree(head, match.group(entry.josa_group) or "")
 
 
-def _apply_entry(text: str, entry: AutoFix) -> tuple[str, int]:
-    """보호 구간을 건너뛰며 한 번 치환한다.
-
-    sub는 입력 문자열 기준 오프셋을 주므로 같은 문자열에서 만든 마스크와
-    좌표계가 일치한다.
-    """
-    mask = build_mask(text)
+def _substitute(text: str, entry: AutoFix) -> tuple[str, int]:
     replaced = 0
 
-    def substitute(match) -> str:
+    def render(match) -> str:
         nonlocal replaced
-        if mask.is_fix_free(match.start(), match.end()):
-            return match.group(0)
         replaced += 1
         return _expand(entry, match)
 
-    return entry.pattern.sub(substitute, text), replaced
+    return entry.pattern.sub(render, text), replaced
 
 
-MAX_PASSES = 3
-
-
-def _apply_rules(text: str, rules: list[Rule]) -> tuple[str, dict[int, int]]:
+def _run(text: str, rules: list[Rule], counts: dict[int, int]) -> str:
     """한 규칙의 교정이 다른 규칙의 대상을 만들 수 있어 안정될 때까지 돈다."""
-    counts: dict[int, int] = {}
     current = text
     for _ in range(MAX_PASSES):
         before = current
         for rule in rules:
             for entry in rule.autofix:
-                current, replaced = _apply_entry(current, entry)
+                current, replaced = _substitute(current, entry)
                 if replaced:
                     counts[rule.id] = counts.get(rule.id, 0) + replaced
         if current == before:
             break
-    return current, counts
+    return current
 
 
-def _triggered(text: str, rules: tuple[Rule, ...]):
-    """검출 결과를 문서 단위와 문단 단위 규칙 집합으로 나눈다."""
-    report = analyze(text, rules)
+def _fix_chunk(chunk: str, rules: list[Rule], counts: dict[int, int]) -> str:
+    """보호 조각은 그대로 두고 나머지에만 규칙을 적용한다."""
+    return "".join(
+        piece.text if piece.protected else _run(piece.text, rules, counts)
+        for piece in partition(chunk)
+    )
+
+
+def _autofix_targets(text: str, rules: tuple[Rule, ...]):
+    """자동 교정 규칙을 문서 단위와 문단 단위로 나눈다."""
     document: set[int] = set()
     paragraph: dict[int, set[int]] = {}
-    for finding in report.findings:
+    for finding in analyze(text, rules).findings:
         if not finding.autofixable:
             continue
-        if finding.paragraph_index is None:
+        if finding.location is None:
             document.add(finding.rule_id)
         else:
-            paragraph.setdefault(finding.paragraph_index, set()).add(finding.rule_id)
+            paragraph.setdefault(finding.location.index, set()).add(finding.rule_id)
     return document, paragraph
 
 
 def apply(text: str, rules: tuple[Rule, ...] | None = None) -> FixResult:
     rules = rules if rules is not None else load_rules()
     by_id = {rule.id: rule for rule in rules}
-    document, per_paragraph = _triggered(text, rules)
+    document_rules, paragraph_rules = _autofix_targets(text, rules)
 
-    segments = split_paragraphs(scrub(text, build_mask(text)))
-    totals: dict[int, int] = {}
+    counts: dict[int, int] = {}
     pieces: list[str] = []
     cursor = 0
 
-    for index, segment in enumerate(segments):
-        pieces.append(text[cursor : segment.start])
-        active = sorted(document | per_paragraph.get(index, set()))
-        chunk, counts = _apply_rules(
-            text[segment.start : segment.end], [by_id[rule_id] for rule_id in active]
+    for index, paragraph in enumerate(Document.of(text).paragraphs):
+        active = sorted(document_rules | paragraph_rules.get(index, set()))
+        pieces.append(text[cursor : paragraph.start])
+        pieces.append(
+            _fix_chunk(
+                text[paragraph.start : paragraph.end],
+                [by_id[rule_id] for rule_id in active],
+                counts,
+            )
         )
-        pieces.append(chunk)
-        for rule_id, count in counts.items():
-            totals[rule_id] = totals.get(rule_id, 0) + count
-        cursor = segment.end
-
+        cursor = paragraph.end
     pieces.append(text[cursor:])
+
     changes = tuple(
         Change(rule_id=rule_id, name=by_id[rule_id].name, replacements=count)
-        for rule_id, count in sorted(totals.items())
+        for rule_id, count in sorted(counts.items())
     )
     return FixResult(text="".join(pieces), changes=changes)
 

@@ -1,6 +1,10 @@
 from korean_normalizer.segment import (
     PLACEHOLDER,
+    Document,
+    Span,
     build_mask,
+    merge_spans,
+    partition,
     scrub,
     split_paragraphs,
     split_sentences,
@@ -50,9 +54,33 @@ def test_scrub_preserves_newlines():
     assert scrub(text, build_mask(text)).count("\n") == text.count("\n")
 
 
-def test_direct_quotes_are_fix_free_but_not_detect_free():
+def test_direct_quotes_are_protected_from_fixes_but_still_detected():
     text = '그는 "분석되어집니다"라고 적었다.'
-    mask = build_mask(text)
-    start = text.index("분석")
-    assert mask.is_fix_free(start, start + 2) is True
-    assert mask.is_detect_free(start, start + 2) is False
+    assert '"분석되어집니다"' in [
+        piece.text for piece in partition(text) if piece.protected
+    ]
+    assert "분석되어집니다" in scrub(text, build_mask(text))
+
+
+def test_partition_covers_the_whole_text():
+    text = "설명입니다. `코드`와 https://example.com 링크."
+    assert "".join(piece.text for piece in partition(text)) == text
+
+
+def test_partition_marks_code_and_urls_protected():
+    protected = [
+        piece.text for piece in partition("`코드` 설명 https://a.b") if piece.protected
+    ]
+    assert protected == ["`코드`", "https://a.b"]
+
+
+def test_merge_spans_collapses_overlaps():
+    merged = merge_spans([Span(0, 5), Span(3, 8), Span(20, 22)])
+    assert merged == (Span(0, 8), Span(20, 22))
+
+
+def test_document_shares_one_paragraph_split():
+    text = "첫 문단입니다.\n\n둘째 문단입니다."
+    document = Document.of(text)
+    assert document.source == text
+    assert document.paragraphs == split_paragraphs(document.scrubbed)

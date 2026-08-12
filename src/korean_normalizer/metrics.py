@@ -11,6 +11,7 @@ import statistics
 from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import lru_cache
 
 from .segment import Segment, split_sentences
 
@@ -159,23 +160,22 @@ def _subject_of(sentence: str) -> str | None:
     return match.group(1) if match else None
 
 
-def _kiwi_tags(text: str) -> list[str] | None:
-    """kiwipiepy가 설치돼 있을 때만 품사 태그를 반환한다."""
+@lru_cache(maxsize=1)
+def _kiwi():
+    """형태소 분석기는 로딩이 무거워 한 번만 만든다. 없으면 None."""
     try:
         from kiwipiepy import Kiwi
     except ImportError:
         return None
-    tokens = _kiwi_instance(Kiwi).tokenize(text)
-    return [token.tag for token in tokens]
+    return Kiwi()
 
 
-_KIWI_CACHE: list[object] = []
-
-
-def _kiwi_instance(factory):
-    if not _KIWI_CACHE:
-        _KIWI_CACHE.append(factory())
-    return _KIWI_CACHE[0]
+def _kiwi_tags(text: str) -> list[str] | None:
+    """kiwipiepy가 설치돼 있을 때만 품사 태그를 반환한다."""
+    analyzer = _kiwi()
+    if analyzer is None:
+        return None
+    return [token.tag for token in analyzer.tokenize(text)]
 
 
 CONTENT_TAGS = ("NNG", "NNP", "NNB", "NR", "NP", "VV", "VA", "VX", "MAG", "MAJ", "MM")

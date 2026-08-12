@@ -1,15 +1,20 @@
-"""규칙 정의를 로드하고 검증한다."""
+"""규칙 정의를 로드하고 검증한다.
+
+정규식 규칙과 통계 규칙은 필요한 필드가 겹치지 않는다. 한 클래스에 담고
+kind 문자열로 갈라 쓰면 절반이 항상 None이 되므로 타입을 나눈다.
+그 덕에 통계 규칙은 자동 교정을 가질 수 없다는 사실이 구조로 강제된다.
+"""
 
 from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
+from collections import Counter
+from dataclasses import dataclass, field
 from functools import lru_cache
 from importlib import resources
 
 SEVERITIES = ("S1", "S2", "S3")
-KINDS = ("regex", "metric")
 SCOPES = ("document", "paragraph")
 RULE_FILES = (
     "punctuation.json",
@@ -38,64 +43,84 @@ class AutoFix:
 
 
 @dataclass(frozen=True)
-class Rule:
+class BaseRule:
     id: int
     name: str
     category: str
     severity: str
-    kind: str
-    scope: str
-    count: int
     guidance: str
-    pattern: re.Pattern[str] | None = None
+
+    @property
+    def has_autofix(self) -> bool:
+        return False
+
+
+@dataclass(frozen=True)
+class RegexRule(BaseRule):
+    pattern: re.Pattern[str]
+    scope: str = "document"
+    count: int = 1
     exclude: re.Pattern[str] | None = None
-    metric: str | None = None
-    metric_bound: dict[str, float] | None = None
     autofix: tuple[AutoFix, ...] = ()
 
     @property
     def has_autofix(self) -> bool:
         return bool(self.autofix)
 
+    @property
+    def kind(self) -> str:
+        """표시·직렬화용 이름. 분기는 타입으로 한다."""
+        return "regex"
 
-def _compile(value: str | None, field: str, rule_id: object) -> re.Pattern[str] | None:
+
+@dataclass(frozen=True)
+class MetricRule(BaseRule):
+    metric: str
+    bound: dict[str, float] = field(default_factory=dict)
+
+    @property
+    def kind(self) -> str:
+        return "metric"
+
+
+Rule = RegexRule | MetricRule
+
+
+def _compile(value: str | None, field_name: str, rule_id: object) -> re.Pattern | None:
     if value is None:
         return None
     try:
         return re.compile(value, re.MULTILINE)
     except re.error as error:
-        raise RuleError(f"rule {rule_id}: invalid regex in {field}: {error}") from error
+        raise RuleError(
+            f"rule {rule_id}: invalid regex in {field_name}: {error}"
+        ) from error
 
 
-def _require(raw: dict, field: str, rule_id: object):
-    if field not in raw:
-        raise RuleError(f"rule {rule_id}: missing required field '{field}'")
-    return raw[field]
+def _require(raw: dict, field_name: str, rule_id: object):
+    if field_name not in raw:
+        raise RuleError(f"rule {rule_id}: missing required field '{field_name}'")
+    return raw[field_name]
 
 
-def build_rule(raw: dict, category: str) -> Rule:
-    rule_id = raw.get("id", "<unknown>")
+def _common(raw: dict, category: str, rule_id: object) -> dict:
     severity = _require(raw, "severity", rule_id)
     if severity not in SEVERITIES:
         raise RuleError(f"rule {rule_id}: unknown severity '{severity}'")
-    kind = _require(raw, "kind", rule_id)
-    if kind not in KINDS:
-        raise RuleError(f"rule {rule_id}: unknown kind '{kind}'")
+    return {
+        "id": int(_require(raw, "id", rule_id)),
+        "name": _require(raw, "name", rule_id),
+        "category": category,
+        "severity": severity,
+        "guidance": _require(raw, "guidance", rule_id),
+    }
 
+
+def _regex_rule(raw: dict, common: dict, rule_id: object) -> RegexRule:
     threshold = raw.get("threshold", {})
     scope = threshold.get("scope", "document")
     if scope not in SCOPES:
         raise RuleError(f"rule {rule_id}: unknown scope '{scope}'")
-
-    if kind == "regex":
-        pattern = _compile(_require(raw, "pattern", rule_id), "pattern", rule_id)
-        metric = None
-        metric_bound = None
-    else:
-        pattern = None
-        metric = _require(raw, "metric", rule_id)
-        metric_bound = _require(raw, "bound", rule_id)
-
     autofix = tuple(
         AutoFix(
             pattern=_compile(entry["pattern"], "autofix.pattern", rule_id),
@@ -104,22 +129,29 @@ def build_rule(raw: dict, category: str) -> Rule:
         )
         for entry in raw.get("autofix", [])
     )
-
-    return Rule(
-        id=int(_require(raw, "id", rule_id)),
-        name=_require(raw, "name", rule_id),
-        category=category,
-        severity=severity,
-        kind=kind,
+    return RegexRule(
+        **common,
+        pattern=_compile(_require(raw, "pattern", rule_id), "pattern", rule_id),
         scope=scope,
         count=int(threshold.get("count", 1)),
-        guidance=_require(raw, "guidance", rule_id),
-        pattern=pattern,
         exclude=_compile(raw.get("exclude"), "exclude", rule_id),
-        metric=metric,
-        metric_bound=metric_bound,
         autofix=autofix,
     )
+
+
+def build_rule(raw: dict, category: str) -> Rule:
+    rule_id = raw.get("id", "<unknown>")
+    common = _common(raw, category, rule_id)
+    kind = _require(raw, "kind", rule_id)
+    if kind == "regex":
+        return _regex_rule(raw, common, rule_id)
+    if kind == "metric":
+        return MetricRule(
+            **common,
+            metric=_require(raw, "metric", rule_id),
+            bound=_require(raw, "bound", rule_id),
+        )
+    raise RuleError(f"rule {rule_id}: unknown kind '{kind}'")
 
 
 @lru_cache(maxsize=1)
@@ -132,8 +164,8 @@ def load_rules() -> tuple[Rule, ...]:
         raw = json.loads((package / filename).read_text(encoding="utf-8"))
         rules.extend(build_rule(entry, category) for entry in raw)
 
-    seen = [rule.id for rule in rules]
-    duplicates = {rule_id for rule_id in seen if seen.count(rule_id) > 1}
+    counted = Counter(rule.id for rule in rules)
+    duplicates = [rule_id for rule_id, seen in counted.items() if seen > 1]
     if duplicates:
         raise RuleError(f"duplicate rule ids: {sorted(duplicates)}")
     return tuple(sorted(rules, key=lambda rule: rule.id))

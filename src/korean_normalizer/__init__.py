@@ -2,11 +2,13 @@
 
 from .detect import Finding, Report, analyze, grade
 from .fix import FixResult, apply, diff
-from .rules import Rule, load_rules
+from .rules import MetricRule, RegexRule, Rule, load_rules
 
 __all__ = [
     "Finding",
     "FixResult",
+    "MetricRule",
+    "RegexRule",
     "Report",
     "Rule",
     "analyze",
