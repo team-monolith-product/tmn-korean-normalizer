@@ -260,15 +260,28 @@ MARKDOWN_HEAVY = (
 
 def test_markdown_markers_are_stripped():
     result = fixed(MARKDOWN_HEAVY)
-    assert "**" not in result
-    assert "## " not in result
-    assert "---" not in result
+    for marker in ("**", "## ", "---", "- "):
+        assert marker not in result
     assert "첫째: 내용이 있다" in result
 
 
-def test_markdown_fix_keeps_list_items():
-    """목록을 문단으로 합치는 것은 문장을 다시 써야 해 기계가 못 한다."""
-    assert "- 첫째" in fixed(MARKDOWN_HEAVY)
+def test_symbol_bullets_and_numbering_are_stripped():
+    text = (
+        "핵심 정리를 붙였다.\n\n"
+        "① 원문자 항목\n• 불릿 항목\n※ 참고 항목\n"
+        "> 인용문이다\n💡 이모지 항목\n2) 번호 항목\n"
+    )
+    result = fixed(text)
+    for marker in ("①", "•", "※", "> ", "💡", "2) "):
+        assert marker not in result
+    assert "원문자 항목" in result
+    assert "번호 항목" in result
+
+
+def test_year_is_not_mistaken_for_a_list_number():
+    """번호 표시는 두 자리까지다. 2026. 은 연도다."""
+    text = "핵심 정리를 붙였다.\n\n2026. 3. 5. 회의가 있었다. 다음 문장이다."
+    assert "2026. 3. 5." in fixed(text)
 
 
 def test_prose_document_keeps_its_markdown():

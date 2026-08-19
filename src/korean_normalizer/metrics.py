@@ -39,8 +39,10 @@ SHORT_SENTENCE = 25
 
 # 목록 항목·가로줄·인용 부호는 산문 문장이 아니다. 원래 짧은 단위라
 # 문장 길이 통계에 넣으면 글이 잘게 끊긴 것처럼 보인다.
-NON_PROSE_LINE = re.compile(r"^[ \t]*(?:[-*+•]\s|\d+[.)]\s|[-=_]{3,}[ \t]*$|>)")
-STRUCTURE_LINE = re.compile(r"^[ \t]*(?:[-*+•]\s|\d+[.)]\s|#{1,6}\s|[-=_*]{3,}[ \t]*$)")
+# 목록 표시로 쓰이는 기호. 하이픈·별표뿐 아니라 원문자와 불릿 기호도 센다.
+_MARKER = r"[-*+•▶▸‣▪◆★☆※❏□■✓✔·]\s|\d+[.)]\s|[①-⑳㉑-㉟]\s*"
+NON_PROSE_LINE = re.compile(rf"^[ \t]*(?:{_MARKER}|[-=_]{{3,}}[ \t]*$|>)")
+STRUCTURE_LINE = re.compile(rf"^[ \t]*(?:{_MARKER}|#{{1,6}}\s|>|[-=_*]{{3,}}[ \t]*$)")
 BOLD_RUN = re.compile(r"\*\*[^*\n]+\*\*")
 MARKUP = re.compile(r"[*_`#>|]")
 INTENSIFIER = re.compile(
