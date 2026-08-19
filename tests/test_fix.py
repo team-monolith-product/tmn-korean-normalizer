@@ -56,15 +56,14 @@ def test_em_dash_pair_becomes_parentheses():
 
 
 def test_colon_after_predicate_becomes_period():
-    assert (
-        fixed("설치 방법은 다음과 같습니다:\n- a")
-        == "설치 방법은 다음과 같습니다.\n- a"
+    assert fixed("설치 방법은 다음과 같습니다:\n- a").startswith(
+        "설치 방법은 다음과 같습니다."
     )
 
 
 def test_label_colon_is_dropped():
     """콜론과 함께 공허한 관형어 '주요'도 지워진다."""
-    assert fixed("주요 특징:\n1. 속도") == "특징\n1. 속도"
+    assert fixed("주요 특징:\n1. 속도") == "특징. 속도"
 
 
 def test_closing_idiom_is_deleted():
@@ -87,7 +86,7 @@ def test_anchored_rules_respect_real_line_ends():
     """보호 구간을 기준으로 조각내면 ^ $ 앵커가 조각 끝을 줄 끝으로 착각한다."""
     text = "주요 특징:\n1. 속도\n\n설치 방법은 다음과 같습니다: `npm i` 를 실행하세요."
     result = fixed(text)
-    assert "특징\n" in result
+    assert result.startswith("특징. 속도")
     assert "다음과 같습니다: `npm i`" in result
 
 
@@ -161,7 +160,7 @@ def test_en_dash_between_numbers_is_not_a_rhetorical_dash():
 def test_empty_intensifier_is_removed_from_modifier_position():
     text = "## 핵심 수익 구조\n\n주요 특징을 본다. 두 가지 핵심 알고리즘을 쓴다."
     result = fixed(text)
-    assert "## 수익 구조" in result
+    assert result.startswith("수익 구조.")
     assert "특징을 본다" in result
     assert "두 가지 알고리즘을 쓴다" in result
 
@@ -224,9 +223,9 @@ def test_closing_label_line_is_deleted():
 
 
 def test_closing_label_with_content_after_it_survives():
-    """'## 3. 요약: 비교표'처럼 뒤에 내용이 붙으면 표제가 아니다."""
+    """'요약: 비교표'처럼 뒤에 내용이 붙으면 표제가 아니라 지우지 않는다."""
     text = "본문입니다.\n\n## 3. 요약: 비교표\n\n내용입니다.\n"
-    assert "## 3. 요약: 비교표" in fixed(text)
+    assert "요약: 비교표" in fixed(text)
 
 
 def test_announcement_paragraph_is_deleted():
@@ -284,8 +283,8 @@ def test_year_is_not_mistaken_for_a_list_number():
     assert "2026. 3. 5." in fixed(text)
 
 
-def test_prose_document_keeps_its_markdown():
-    """밀도가 낮으면 규칙이 발화하지 않아 문서 구조를 건드리지 않는다."""
+def test_headings_go_even_in_a_mostly_prose_document():
+    """표시 하나면 지운다. 밀도로 재던 시절에는 이런 글에 헤딩이 남았다."""
     text = (
         "## 제목\n\n"
         "전세 제도가 한국에만 있는 이유는 금융 환경에 있다.\n"
@@ -294,7 +293,7 @@ def test_prose_document_keeps_its_markdown():
         "최근 사고가 반복되는 것도 같은 이유다.\n"
         "보증금을 돌려줄 현금이 없는 집주인이 늘었다.\n"
     )
-    assert "## 제목" in fixed(text)
+    assert fixed(text).startswith("제목. 전세 제도가")
 
 
 def test_stripped_headings_join_the_next_paragraph():

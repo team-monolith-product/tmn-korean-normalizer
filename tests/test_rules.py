@@ -132,12 +132,24 @@ def test_rejects_duplicate_ids(monkeypatch):
     load_rules.cache_clear()
 
 
-def test_metric_rules_may_carry_autofix():
-    """무엇으로 판정하느냐와 고칠 수 있느냐는 별개다. 117이 그 예다."""
-    by_id = {rule.id: rule for rule in load_rules()}
-    assert isinstance(by_id[117], MetricRule)
-    assert by_id[117].has_autofix
-    assert not by_id[105].has_autofix
+def test_autofix_does_not_depend_on_the_rule_kind():
+    """무엇으로 판정하느냐와 고칠 수 있느냐는 별개다. 두 갈래가 같은 필드를 쓴다."""
+    raw = {
+        "id": 900,
+        "name": "예시",
+        "severity": "S2",
+        "kind": "metric",
+        "metric": "intensifier_density",
+        "bound": {"gt": 1.0},
+        "guidance": "설명",
+        "autofix": [{"pattern": "완전히 ", "replacement": ""}],
+        "merge_fragments": True,
+    }
+    rule = build_rule(raw, "extra")
+    assert isinstance(rule, MetricRule)
+    assert rule.has_autofix
+    assert rule.merge_fragments
+    assert rule.tier == "A"
 
 
 def test_kind_is_derived_from_the_type():

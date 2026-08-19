@@ -87,7 +87,8 @@ def test_table_rows_are_not_prose():
 
 
 def test_headings_are_not_prose():
-    assert ids_of("## 트랙 A — 자기 학교 학생·단원 맥락 반영\n") == set()
+    """헤딩은 마크다운 표시로만 걸리고 문장부호 규칙에는 걸리지 않는다."""
+    assert ids_of("## 트랙 A — 자기 학교 학생·단원 맥락 반영\n") == {117}
 
 
 def test_em_dash_in_prose_is_still_caught():

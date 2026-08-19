@@ -77,10 +77,12 @@ class BaseRule:
     category: str
     severity: str
     guidance: str
+    autofix: tuple[AutoFix, ...]
+    merge_fragments: bool
 
     @property
     def has_autofix(self) -> bool:
-        return False
+        return bool(self.autofix)
 
     @property
     def sees_layout(self) -> bool:
@@ -94,11 +96,6 @@ class RegexRule(BaseRule):
     scope: str = "document"
     count: int = 1
     exclude: re.Pattern[str] | None = None
-    autofix: tuple[AutoFix, ...] = ()
-
-    @property
-    def has_autofix(self) -> bool:
-        return bool(self.autofix)
 
     @property
     def tier(self) -> str:
@@ -115,12 +112,6 @@ class RegexRule(BaseRule):
 class MetricRule(BaseRule):
     metric: str
     bound: Bound
-    autofix: tuple[AutoFix, ...] = ()
-    merge_fragments: bool = False
-
-    @property
-    def has_autofix(self) -> bool:
-        return bool(self.autofix)
 
     @property
     def tier(self) -> str:
@@ -167,6 +158,8 @@ def _common(raw: dict, category: str, rule_id: object) -> dict:
         "category": category,
         "severity": severity,
         "guidance": _require(raw, "guidance", rule_id),
+        "autofix": _autofix(raw, rule_id),
+        "merge_fragments": bool(raw.get("merge_fragments", False)),
     }
 
 
@@ -192,7 +185,6 @@ def _regex_rule(raw: dict, common: dict, rule_id: object) -> RegexRule:
         scope=scope,
         count=int(threshold.get("count", 1)),
         exclude=_compile_optional(raw.get("exclude"), "exclude", rule_id),
-        autofix=_autofix(raw, rule_id),
     )
 
 
@@ -214,8 +206,6 @@ def _metric_rule(raw: dict, common: dict, rule_id: object) -> MetricRule:
         **common,
         metric=name,
         bound=_bound(raw, rule_id),
-        autofix=_autofix(raw, rule_id),
-        merge_fragments=bool(raw.get("merge_fragments", False)),
     )
 
 
