@@ -106,6 +106,7 @@ class MetricRule(BaseRule):
     metric: str
     bound: Bound
     autofix: tuple[AutoFix, ...] = ()
+    merge_fragments: bool = False
 
     @property
     def has_autofix(self) -> bool:
@@ -204,6 +205,7 @@ def _metric_rule(raw: dict, common: dict, rule_id: object) -> MetricRule:
         metric=name,
         bound=_bound(raw, rule_id),
         autofix=_autofix(raw, rule_id),
+        merge_fragments=bool(raw.get("merge_fragments", False)),
     )
 
 

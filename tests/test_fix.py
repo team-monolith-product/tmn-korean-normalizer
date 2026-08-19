@@ -295,3 +295,23 @@ def test_prose_document_keeps_its_markdown():
         "보증금을 돌려줄 현금이 없는 집주인이 늘었다.\n"
     )
     assert "## 제목" in fixed(text)
+
+
+def test_stripped_headings_join_the_next_paragraph():
+    """헤딩 기호를 떼면 서술 없는 한 줄이 남는다. 뒤 문단에 붙인다."""
+    text = "## 콘웨이 법칙\n\n조직 구조가 설계에 드러납니다.\n"
+    assert fixed(MARKDOWN_HEAVY + "\n" + text).endswith(
+        "콘웨이 법칙. 조직 구조가 설계에 드러납니다.\n"
+    )
+
+
+def test_list_items_become_one_paragraph():
+    result = fixed(MARKDOWN_HEAVY)
+    assert "첫째: 내용이 있다. 둘째: 내용이 있다. 셋째: 내용이 있다" in result
+    assert "\n첫째" not in result
+
+
+def test_tables_keep_their_line_structure():
+    text = MARKDOWN_HEAVY + "\n| 구분 | 값 |\n| --- | --- |\n| 가 | 나 |\n"
+    result = fixed(text)
+    assert "| 구분 | 값 |\n| --- | --- |\n| 가 | 나 |" in result
