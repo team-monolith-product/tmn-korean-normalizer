@@ -130,3 +130,31 @@ def test_team_rule_catches_hype_spread_across_the_document():
     )
     assert 105 in ids_of(text)
     assert 38 not in ids_of(text)
+
+
+def test_team_rule_catches_gloss_parentheses():
+    text = "결과가 IPO(상장)로 이어졌다. 지분을 매각(처분)했다. 수익(이익)을 냈다."
+    assert 106 in ids_of(text)
+
+
+def test_gloss_rule_leaves_abbreviation_glosses_alone():
+    """축약어와 원어 병기는 괄호를 쓰는 정당한 자리다."""
+    text = (
+        "Y Combinator(YC)는 액셀러레이터다. "
+        "MFN(Most Favored Nation) SAFE로 투자한다. "
+        "약 6.5억~7억 원(50만 달러)을 넣는다."
+    )
+    assert 106 not in ids_of(text)
+
+
+def test_team_rule_catches_nested_parentheses():
+    assert 107 in ids_of("이 방식(가장 유리한 조건(MFN)으로 전환)을 쓴다.")
+
+
+def test_team_rule_catches_empty_intensifiers():
+    assert 108 in ids_of("## 핵심 수익 구조\n\n주요 특징을 정리한다.")
+
+
+def test_empty_intensifier_rule_reads_headings():
+    """공허한 강조는 헤딩에 몰린다. 헤딩이 어휘 규칙에 보여야 잡힌다."""
+    assert 108 in ids_of("## 1. 핵심 수익 구조\n\n## 2. 핵심 축\n")

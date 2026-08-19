@@ -49,26 +49,18 @@ class MaskMap:
     fix_free: tuple[Span, ...]
 
 
-NON_PROSE = (
-    FENCED_CODE,
-    INLINE_CODE,
-    URL,
-    MARKDOWN_LINK_TARGET,
-    TABLE_ROW,
-    HEADING,
-)
+NON_TEXT = (FENCED_CODE, INLINE_CODE, URL, MARKDOWN_LINK_TARGET, TABLE_ROW)
 
 
 def build_mask(text: str) -> MaskMap:
-    """표와 헤딩은 산문이 아니다.
+    """코드·URL·표는 애초에 산문이 아니라 어디서도 보지 않는다.
 
     표 칸은 명사구 나열이라 품사 비율을 왜곡하고, 칸 구분자를 넘어 매치가
-    형성되면 표가 깨진다. 헤딩도 명사구이며 원본 스킬이 결론 헤딩을 예외로
-    둔다.
+    형성되면 표가 깨진다.
     """
     detect_free = tuple(
         Span(match.start(), match.end())
-        for pattern in NON_PROSE
+        for pattern in NON_TEXT
         for match in pattern.finditer(text)
     )
     fix_free = tuple(
@@ -148,16 +140,31 @@ def split_sentences(text: str) -> tuple[Segment, ...]:
 class Document:
     """마스킹과 분절이 끝난 텍스트.
 
+    헤딩은 두 층으로 갈린다. 어휘 규칙은 헤딩까지 봐야 한다. '핵심 수익 구조'
+    같은 공허한 강조가 헤딩에 몰리기 때문이다. 반대로 통계 지표와 문장부호
+    규칙에서는 빼야 한다. 헤딩은 문장이 아니고 줄표 같은 부호 관습도 본문과
+    다르다. 그래서 scrubbed는 헤딩을 남기고 prose는 지운다.
+
     검출과 교정이 같은 함수로 문단을 나누므로 문단 번호가 어긋날 수 없다.
     """
 
     source: str
     scrubbed: str
+    prose: str
     paragraphs: tuple[Segment, ...]
 
     @classmethod
     def of(cls, text: str) -> Document:
         scrubbed = scrub(text, build_mask(text))
+        heading = MaskMap(
+            detect_free=tuple(
+                Span(match.start(), match.end()) for match in HEADING.finditer(scrubbed)
+            ),
+            fix_free=(),
+        )
         return cls(
-            source=text, scrubbed=scrubbed, paragraphs=split_paragraphs(scrubbed)
+            source=text,
+            scrubbed=scrubbed,
+            prose=scrub(scrubbed, heading),
+            paragraphs=split_paragraphs(scrubbed),
         )

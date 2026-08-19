@@ -85,3 +85,16 @@ def test_document_shares_one_paragraph_split():
     document = Document.of(text)
     assert document.source == text
     assert document.paragraphs == split_paragraphs(document.scrubbed)
+
+
+def test_headings_stay_visible_to_lexical_rules_but_leave_prose():
+    document = Document.of("## 핵심 수익 구조\n\n본문입니다.\n")
+    assert "핵심 수익 구조" in document.scrubbed
+    assert "핵심 수익 구조" not in document.prose
+    assert "본문입니다." in document.prose
+
+
+def test_tables_are_hidden_from_both_layers():
+    document = Document.of("| 시간 | 내용 |\n\n본문입니다.\n")
+    assert "시간" not in document.scrubbed
+    assert "시간" not in document.prose

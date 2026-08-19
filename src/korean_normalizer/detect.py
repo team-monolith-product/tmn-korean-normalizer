@@ -10,6 +10,7 @@ from .segment import Document
 
 MAX_SAMPLES = 5
 SNIPPET_PAD = 12
+LEXICAL_CATEGORIES = frozenset({"vocabulary", "translation", "extra"})
 
 
 @dataclass(frozen=True)
@@ -76,16 +77,23 @@ def _matches_in(rule: RegexRule, haystack: str, offset: int) -> list[tuple[int, 
     ]
 
 
+def _haystack(rule: RegexRule, document: Document) -> str:
+    """어휘 규칙만 헤딩을 본다. 문장부호·구조 규칙에서 헤딩은 관습이 다르다."""
+    return document.scrubbed if rule.category in LEXICAL_CATEGORIES else document.prose
+
+
 def _regex_findings(rule: RegexRule, document: Document) -> list[Finding]:
+    haystack = _haystack(rule, document)
     if rule.scope == "document":
-        spans = _matches_in(rule, document.scrubbed, 0)
+        spans = _matches_in(rule, haystack, 0)
         if len(spans) < rule.count:
             return []
         return [_regex_finding(rule, document.source, spans, None)]
 
     findings = []
     for index, paragraph in enumerate(document.paragraphs):
-        spans = _matches_in(rule, paragraph.text, paragraph.start)
+        chunk = haystack[paragraph.start : paragraph.end]
+        spans = _matches_in(rule, chunk, paragraph.start)
         if len(spans) >= rule.count:
             location = Location(index=index, start=paragraph.start, end=paragraph.end)
             findings.append(_regex_finding(rule, document.source, spans, location))
@@ -149,7 +157,7 @@ def analyze_document(
 ) -> Report:
     """이미 분절된 문서를 분석한다. 교정 쪽에서 문서를 두 번 만들지 않도록 나눴다."""
     rules = rules if rules is not None else load_rules()
-    context = metrics.context_of(document.scrubbed)
+    context = metrics.context_of(document.prose)
 
     findings: list[Finding] = []
     skipped: list[str] = []

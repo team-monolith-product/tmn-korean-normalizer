@@ -11,7 +11,7 @@ from korean_normalizer.rules import (
 )
 
 TIER_A = {3, 6, 7, 15, 17, 19, 27, 31, 37}
-TEAM_IDS = {101, 102, 103, 104, 105}
+TEAM_IDS = {101, 102, 103, 104, 105, 106, 107, 108}
 
 
 def test_upstream_forty_patterns_are_all_present():
