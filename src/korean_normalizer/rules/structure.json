@@ -1,0 +1,47 @@
+[
+  {
+    "id": 21,
+    "name": "문장 리듬 부족",
+    "severity": "S2",
+    "kind": "metric",
+    "metric": "sentence_length_cv",
+    "bound": {
+      "lt": 0.15
+    },
+    "guidance": "짧은 문장과 긴 문장을 섞어 길이 대비를 만든다."
+  },
+  {
+    "id": 22,
+    "name": "3박자 과다 사용",
+    "severity": "S2",
+    "kind": "regex",
+    "pattern": "[가-힣]+(?:고|며),\\s*[가-힣]+(?:고|며),\\s*[가-힣]+|[가-힣]{2,8},\\s*[가-힣]{2,8},\\s*[가-힣]{2,8}(?:을|를|이|가)\\s",
+    "threshold": {
+      "scope": "document",
+      "count": 2
+    },
+    "guidance": "3항목 평행 구조를 2항목이나 4항목으로 바꾼다."
+  },
+  {
+    "id": 23,
+    "name": "접속사 과다 사용",
+    "severity": "S2",
+    "kind": "metric",
+    "metric": "conjunction_sentence_ratio",
+    "bound": {
+      "gt": 0.4
+    },
+    "guidance": "명시적 접속사를 줄이고 논리 흐름을 문맥에 맡긴다."
+  },
+  {
+    "id": 24,
+    "name": "경어체 균일성",
+    "severity": "S2",
+    "kind": "metric",
+    "metric": "ending_uniformity",
+    "bound": {
+      "gte": 0.95
+    },
+    "guidance": "같은 격식 범위 안에서 종결어미를 가끔 바꿔 리듬을 만든다."
+  }
+]
