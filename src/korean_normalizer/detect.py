@@ -130,7 +130,7 @@ def _metric_finding(rule: MetricRule, value: float) -> Finding:
         category=rule.category,
         severity=rule.severity,
         guidance=rule.guidance,
-        autofixable=False,
+        autofixable=rule.has_autofix,
         metric_value=round(value, 4),
     )
 

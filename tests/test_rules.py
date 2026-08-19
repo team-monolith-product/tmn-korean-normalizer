@@ -4,7 +4,7 @@ from korean_normalizer import metrics
 from korean_normalizer import rules as rules_module
 from korean_normalizer.rules import MetricRule, RuleError, build_rule, load_rules
 
-TIER_A = {3, 6, 7, 15, 17, 19, 27, 31, 37, 108, 112, 113, 114}
+TIER_A = {3, 6, 7, 15, 17, 19, 27, 31, 37, 108, 112, 113, 114, 117}
 # 11·12·13은 논문에 없거나 길이를 재고 있어 뺐다. tools/pos_ngram_check.py 참조.
 BORROWED_IDS = set(range(1, 41)) - {11, 12, 13, 38}
 TEAM_IDS = {
@@ -132,11 +132,12 @@ def test_rejects_duplicate_ids(monkeypatch):
     load_rules.cache_clear()
 
 
-def test_metric_rules_cannot_carry_autofix():
-    """통계 규칙은 자동 교정 필드를 갖지 못하는 것이 타입으로 보장된다."""
-    metric_rules = [rule for rule in load_rules() if isinstance(rule, MetricRule)]
-    assert metric_rules
-    assert all(not hasattr(rule, "autofix") for rule in metric_rules)
+def test_metric_rules_may_carry_autofix():
+    """무엇으로 판정하느냐와 고칠 수 있느냐는 별개다. 117이 그 예다."""
+    by_id = {rule.id: rule for rule in load_rules()}
+    assert isinstance(by_id[117], MetricRule)
+    assert by_id[117].has_autofix
+    assert not by_id[105].has_autofix
 
 
 def test_kind_is_derived_from_the_type():

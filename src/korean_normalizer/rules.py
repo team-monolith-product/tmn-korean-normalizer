@@ -5,7 +5,8 @@
 
 정규식 규칙과 통계 규칙은 필요한 필드가 겹치지 않는다. 한 클래스에 담고
 kind 문자열로 갈라 쓰면 절반이 항상 None이 되므로 타입을 나눈다.
-그 덕에 통계 규칙은 자동 교정을 가질 수 없다는 사실이 구조로 강제된다.
+양쪽 다 자동 교정을 가질 수 있다. 무엇으로 판정하느냐와 고칠 수 있느냐는
+별개 문제다. 밀도로 재고 정규식으로 고치는 규칙이 있다.
 """
 
 from __future__ import annotations
@@ -104,9 +105,16 @@ class RegexRule(BaseRule):
 class MetricRule(BaseRule):
     metric: str
     bound: Bound
+    autofix: tuple[AutoFix, ...] = ()
+
+    @property
+    def has_autofix(self) -> bool:
+        return bool(self.autofix)
 
     @property
     def tier(self) -> str:
+        if self.autofix:
+            return "A"
         return "C" if metrics.needs_analyzer(self.metric) else "B"
 
     @property
@@ -151,12 +159,8 @@ def _common(raw: dict, category: str, rule_id: object) -> dict:
     }
 
 
-def _regex_rule(raw: dict, common: dict, rule_id: object) -> RegexRule:
-    threshold = raw.get("threshold", {})
-    scope = threshold.get("scope", "document")
-    if scope not in SCOPES:
-        raise RuleError(f"rule {rule_id}: unknown scope '{scope}'")
-    autofix = tuple(
+def _autofix(raw: dict, rule_id: object) -> tuple[AutoFix, ...]:
+    return tuple(
         AutoFix(
             pattern=_compile(entry["pattern"], "autofix.pattern", rule_id),
             replacement=entry["replacement"],
@@ -164,13 +168,20 @@ def _regex_rule(raw: dict, common: dict, rule_id: object) -> RegexRule:
         )
         for entry in raw.get("autofix", [])
     )
+
+
+def _regex_rule(raw: dict, common: dict, rule_id: object) -> RegexRule:
+    threshold = raw.get("threshold", {})
+    scope = threshold.get("scope", "document")
+    if scope not in SCOPES:
+        raise RuleError(f"rule {rule_id}: unknown scope '{scope}'")
     return RegexRule(
         **common,
         pattern=_compile(_require(raw, "pattern", rule_id), "pattern", rule_id),
         scope=scope,
         count=int(threshold.get("count", 1)),
         exclude=_compile_optional(raw.get("exclude"), "exclude", rule_id),
-        autofix=autofix,
+        autofix=_autofix(raw, rule_id),
     )
 
 
@@ -188,7 +199,12 @@ def _metric_rule(raw: dict, common: dict, rule_id: object) -> MetricRule:
     name = _require(raw, "metric", rule_id)
     if name not in metrics.registered():
         raise RuleError(f"rule {rule_id}: unknown metric '{name}'")
-    return MetricRule(**common, metric=name, bound=_bound(raw, rule_id))
+    return MetricRule(
+        **common,
+        metric=name,
+        bound=_bound(raw, rule_id),
+        autofix=_autofix(raw, rule_id),
+    )
 
 
 def build_rule(raw: dict, category: str) -> Rule:

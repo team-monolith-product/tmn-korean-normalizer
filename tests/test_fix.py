@@ -239,3 +239,36 @@ def test_announcement_inside_a_longer_paragraph_survives():
         "담당자가 확인 후 정리해 드리겠습니다. 접수 순서대로 처리합니다."
     )
     assert "정리해 드리겠습니다" in fixed(text)
+
+
+MARKDOWN_HEAVY = (
+    "## 1. 핵심 정리\n\n"
+    "- **첫째**: 내용이 있다\n- **둘째**: 내용이 있다\n- **셋째**: 내용이 있다\n\n"
+    "---\n\n## 2. 다음\n\n- **넷째**: 내용이 있다\n- **다섯째**: 내용이 있다\n"
+)
+
+
+def test_markdown_markers_are_stripped():
+    result = fixed(MARKDOWN_HEAVY)
+    assert "**" not in result
+    assert "## " not in result
+    assert "---" not in result
+    assert "첫째: 내용이 있다" in result
+
+
+def test_markdown_fix_keeps_list_items():
+    """목록을 문단으로 합치는 것은 문장을 다시 써야 해 기계가 못 한다."""
+    assert "- 첫째" in fixed(MARKDOWN_HEAVY)
+
+
+def test_prose_document_keeps_its_markdown():
+    """밀도가 낮으면 규칙이 발화하지 않아 문서 구조를 건드리지 않는다."""
+    text = (
+        "## 제목\n\n"
+        "전세 제도가 한국에만 있는 이유는 금융 환경에 있다.\n"
+        "은행 대출이 어렵던 시절 집주인이 세입자 보증금을 사금융처럼 썼다.\n"
+        "이 구조는 집값이 오를 때만 굴러가고 내릴 때 무너진다.\n"
+        "최근 사고가 반복되는 것도 같은 이유다.\n"
+        "보증금을 돌려줄 현금이 없는 집주인이 늘었다.\n"
+    )
+    assert "## 제목" in fixed(text)
