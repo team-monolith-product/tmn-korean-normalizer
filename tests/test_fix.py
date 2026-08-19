@@ -155,3 +155,23 @@ def test_table_row_with_a_time_range_survives():
 def test_en_dash_between_numbers_is_not_a_rhetorical_dash():
     text = "행사는 13:00–15:00 에 열린다. 준비는 09:00–10:00 에 한다."
     assert fixed(text) == text
+
+
+def test_empty_intensifier_is_removed_from_modifier_position():
+    text = "## 핵심 수익 구조\n\n주요 특징을 본다. 두 가지 핵심 알고리즘을 쓴다."
+    result = fixed(text)
+    assert "## 수익 구조" in result
+    assert "특징을 본다" in result
+    assert "두 가지 알고리즘을 쓴다" in result
+
+
+def test_empty_intensifier_survives_where_deleting_breaks_the_sentence():
+    """'핵심적인 위치'는 형용사가 서술을 떠받치고 '핵심이 된다'는 명사다."""
+    text = (
+        "핵심적인 위치를 차지한다. 주요 지표를 본다.\n\n"
+        "지연 단축의 핵심이 된다. 핵심을 짚었다."
+    )
+    result = fixed(text)
+    assert "핵심적인 위치를 차지한다" in result
+    assert "핵심이 된다" in result
+    assert "핵심을 짚었다" in result

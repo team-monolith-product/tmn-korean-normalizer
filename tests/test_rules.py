@@ -10,7 +10,7 @@ from korean_normalizer.rules import (
     load_rules,
 )
 
-TIER_A = {3, 6, 7, 15, 17, 19, 27, 31, 37}
+TIER_A = {3, 6, 7, 15, 17, 19, 27, 31, 37, 108}
 TEAM_IDS = {101, 102, 103, 104, 105, 106, 108, 109, 111}
 
 
