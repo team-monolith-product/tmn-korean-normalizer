@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import re
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import lru_cache
 from importlib import resources
 
@@ -206,6 +206,18 @@ def build_rule(raw: dict, category: str) -> Rule:
     raise RuleError(f"rule {rule_id}: unknown kind '{kind}'")
 
 
+def widen_scope(rule: Rule) -> Rule:
+    """문단 임계를 문서 임계로 넓힌다.
+
+    상류 스킬은 같은 표현이 한 문단에 몰릴 때만 신호로 본다. 실제 글은
+    문단마다 하나씩 흩뿌리는 쪽이 흔해 임계에 닿지 않는다. 정의 자체는
+    상류 JSON 그대로 두고 로드 뒤에 스코프만 바꿔 차이를 한곳에 남긴다.
+    """
+    if isinstance(rule, RegexRule) and rule.scope == "paragraph":
+        return replace(rule, scope="document")
+    return rule
+
+
 @lru_cache(maxsize=1)
 def load_rules() -> tuple[Rule, ...]:
     """원본 40개와 팀 추가분을 합쳐 id 순으로 반환한다."""
@@ -220,4 +232,4 @@ def load_rules() -> tuple[Rule, ...]:
     duplicates = [rule_id for rule_id, seen in counted.items() if seen > 1]
     if duplicates:
         raise RuleError(f"duplicate rule ids: {sorted(duplicates)}")
-    return tuple(sorted(rules, key=lambda rule: rule.id))
+    return tuple(sorted(map(widen_scope, rules), key=lambda rule: rule.id))

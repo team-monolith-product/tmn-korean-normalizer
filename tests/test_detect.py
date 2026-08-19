@@ -25,10 +25,10 @@ def test_paragraph_threshold_needs_repetition():
     assert 25 in ids_of(twice)
 
 
-def test_threshold_counts_per_paragraph_not_document():
-    """단락마다 1회씩이면 임계 2를 넘지 않는다."""
+def test_threshold_counts_across_the_whole_document():
+    """문단마다 하나씩 흩뿌려도 합쳐서 임계를 넘으면 신호다."""
     text = "이 문제에 대해 논의했습니다.\n\n저 사안에 대해 검토했습니다."
-    assert 25 not in ids_of(text)
+    assert 25 in ids_of(text)
 
 
 def test_code_block_is_excluded_from_detection():

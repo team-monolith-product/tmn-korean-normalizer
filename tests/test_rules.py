@@ -177,3 +177,19 @@ def test_tier_matches_the_documented_taxonomy():
     assert by_tier["A"] == TIER_A
     assert by_tier["C"] == {11, 12, 13}
     assert by_tier["B"] == (UPSTREAM_IDS | TEAM_IDS) - TIER_A - {11, 12, 13}
+
+
+def test_paragraph_scope_is_widened_to_document():
+    """상류 정의는 문단이지만 팀은 문서 단위로 읽는다."""
+    package = rules_module.resources.files("korean_normalizer") / "rules"
+    raw = rules_module.json.loads(
+        (package / "translation.json").read_text(encoding="utf-8")
+    )
+    upstream = {entry["id"]: entry.get("threshold", {}) for entry in raw}
+    assert upstream[25]["scope"] == "paragraph"
+    assert next(r for r in load_rules() if r.id == 25).scope == "document"
+
+
+def test_widen_scope_leaves_document_rules_untouched():
+    document_rule = next(r for r in load_rules() if r.id == 31)
+    assert rules_module.widen_scope(document_rule) is document_rule
