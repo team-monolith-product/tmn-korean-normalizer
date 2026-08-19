@@ -339,3 +339,20 @@ def test_headings_go_even_when_they_hold_a_quote():
     result = fixed(text)
     assert "AI 학습" not in result
     assert '"인용문"' in result
+
+
+def test_code_blocks_keep_their_line_breaks():
+    """줄바꿈이 문법인 블록은 문단으로 잇지 않는다."""
+    text = "## 제목\n\n설명입니다.\n\n```py\na = 1\nb = 2\n```\n\n이어집니다.\n"
+    assert "```py\na = 1\nb = 2\n```" in fixed(text)
+
+
+def test_display_math_survives_intact():
+    text = (
+        "## 회귀식\n\n아래와 같이 둡니다.\n\n"
+        "\\[\n\\Delta \\log Rent\n= \\beta D\n+ \\gamma C\n\\]\n\n"
+        "여기서 \\(\\beta\\)는 효과입니다.\n"
+    )
+    result = fixed(text)
+    assert "\\[\n\\Delta \\log Rent\n= \\beta D\n+ \\gamma C\n\\]" in result
+    assert "\\(\\beta\\)는 효과입니다." in result

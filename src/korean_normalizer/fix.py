@@ -14,7 +14,7 @@ from dataclasses import asdict, dataclass
 from .detect import analyze_document
 from .josa import agree
 from .rules import AutoFix, Rule, load_rules
-from .segment import Document, overlaps, protected_spans
+from .segment import VERBATIM_OPENER, Document, overlaps, protected_spans
 
 MAX_PASSES = 3
 FRAGMENT_LIMIT = 40
@@ -104,8 +104,11 @@ def _flatten(block: str) -> tuple[str, int]:
     """한 문단 안의 여러 줄을 한 줄로 잇는다.
 
     목록 기호를 떼면 항목이 줄마다 하나씩 남는다. 문장 끝 부호가 없으면
-    마침표를 찍고 이어 붙여 문단으로 만든다.
+    마침표를 찍고 이어 붙여 문단으로 만든다. 코드 블록과 수식은 줄바꿈이
+    문법이라 손대지 않는다.
     """
+    if VERBATIM_OPENER.search(block):
+        return block, 0
     rows = [line.strip() for line in block.split("\n") if line.strip()]
     if len(rows) < 2:
         return block, 0

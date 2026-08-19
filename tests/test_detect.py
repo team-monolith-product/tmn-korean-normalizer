@@ -229,3 +229,9 @@ def test_empty_intensifier_needs_the_modifier_position():
     assert 108 not in ids_of("핵심은 구조에 있다. 본질은 다르다.")
     assert 108 in ids_of("핵심 정리를 붙였다.")
     assert 108 in ids_of("핵심적인 위치를 차지한다.")
+
+
+def test_math_is_not_prose():
+    """수식의 괄호는 부연이 아니다."""
+    text = "임대료를 \\(R=F(D,Z)\\)로 둡니다. 탄력성은 \\(\\beta\\)입니다.\n"
+    assert 106 not in ids_of(text * 3)

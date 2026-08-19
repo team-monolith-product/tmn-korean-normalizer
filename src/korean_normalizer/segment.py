@@ -10,6 +10,8 @@ PLACEHOLDER = "\x00"
 
 FENCED_CODE = re.compile(r"^```.*?^```", re.MULTILINE | re.DOTALL)
 INLINE_CODE = re.compile(r"`[^`\n]+`")
+MATH_BLOCK = re.compile(r"\\\[.*?\\\]|\$\$.*?\$\$", re.DOTALL)
+MATH_INLINE = re.compile(r"\\\([^\n]*?\\\)")
 URL = re.compile(r"https?://\S+")
 MARKDOWN_LINK_TARGET = re.compile(r"\]\([^)\s]+\)")
 TABLE_ROW = re.compile(r"^[ \t]*\|.*$", re.MULTILINE)
@@ -50,7 +52,17 @@ class MaskMap:
     fix_free: tuple[Span, ...]
 
 
-NON_TEXT = (FENCED_CODE, INLINE_CODE, URL, MARKDOWN_LINK_TARGET)
+NON_TEXT = (
+    FENCED_CODE,
+    INLINE_CODE,
+    MATH_BLOCK,
+    MATH_INLINE,
+    URL,
+    MARKDOWN_LINK_TARGET,
+)
+
+# 여러 줄에 걸친 축자 구간의 여는·닫는 줄. 이 줄이 든 문단은 흐름을 바꾸면 깨진다.
+VERBATIM_OPENER = re.compile(r"^[ \t]*(?:```|\\\[|\\\]|\$\$)", re.MULTILINE)
 LAYOUT = (HEADING, TABLE_ROW)
 
 
