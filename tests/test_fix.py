@@ -143,3 +143,15 @@ def test_fix_never_worsens_the_grade(sample):
 def test_fix_is_idempotent_across_samples(sample):
     once = fixed(sample)
     assert fixed(once) == once
+
+
+def test_table_row_with_a_time_range_survives():
+    """en-dash 시간 범위와 em-dash가 한 줄에 있으면 표가 통째로 깨졌다."""
+    row = "| 13:00–13:40 (40분) | 학생 수준 반영 — 우리 반에 맞게 변형 |"
+    text = f"설명입니다. 아래 표를 보십시오.\n\n{row}\n"
+    assert row in fixed(text)
+
+
+def test_en_dash_between_numbers_is_not_a_rhetorical_dash():
+    text = "행사는 13:00–15:00 에 열린다. 준비는 09:00–10:00 에 한다."
+    assert fixed(text) == text

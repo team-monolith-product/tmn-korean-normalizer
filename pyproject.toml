@@ -49,4 +49,5 @@ select = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["ARG"]
+# 이 도구는 한국어 문장부호를 다루므로 테스트에 en-dash·em-dash가 그대로 들어간다.
+"tests/*" = ["ARG", "RUF001"]

@@ -75,3 +75,19 @@ def test_clean_text_grades_a():
         "길이 많이 막혔다. 지하철로 갈아탔고 그래도 늦었다."
     )
     assert analyze(text).grade == "A"
+
+
+def test_table_rows_are_not_prose():
+    """표 칸은 명사구 나열이라 품사 비율과 쉼표 지표를 왜곡한다."""
+    table = "\n".join(
+        f"| 1{hour}:00–1{hour}:40 | 항목 반영 — 세부 내용 정리 |" for hour in range(4)
+    )
+    assert ids_of(f"| 시간 | 내용 |\n|---|---|\n{table}\n") == set()
+
+
+def test_headings_are_not_prose():
+    assert ids_of("## 트랙 A — 자기 학교 학생·단원 맥락 반영\n") == set()
+
+
+def test_em_dash_in_prose_is_still_caught():
+    assert 6 in ids_of("이 방법은 — 널리 쓰이듯 — 효과가 있다.")

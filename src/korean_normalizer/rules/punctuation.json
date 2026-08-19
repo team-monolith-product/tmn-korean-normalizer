@@ -5,7 +5,9 @@
     "severity": "S2",
     "kind": "metric",
     "metric": "comma_sentence_ratio",
-    "bound": { "gt": 0.4 },
+    "bound": {
+      "gt": 0.4
+    },
     "guidance": "쉼표 없이 읽히는 자리의 쉼표를 지우고, 긴 문장은 마침표로 나눈다."
   },
   {
@@ -14,7 +16,9 @@
     "severity": "S2",
     "kind": "metric",
     "metric": "comma_relative_position",
-    "bound": { "gt": 0.15 },
+    "bound": {
+      "gt": 0.15
+    },
     "guidance": "문장 뒤쪽 쉼표를 앞으로 옮기거나 제거한다. 한국어는 SOV라 뒤쪽 쉼표가 어색하다."
   },
   {
@@ -23,7 +27,10 @@
     "severity": "S2",
     "kind": "regex",
     "pattern": "(?:(?<!그리)(?<!그러)[가-힣](?:면서|으며|지만|는데|고|며)|(?<![에게로])[가-힣]서)\\s*,",
-    "threshold": { "scope": "paragraph", "count": 3 },
+    "threshold": {
+      "scope": "paragraph",
+      "count": 3
+    },
     "autofix": [
       {
         "pattern": "([가-힣](?:아서|어서|여서|해서|나서|가서|와서|봐서|돼서|줘서|써서|면서|으며|지만|는데)|하고|되고|있고|없고|이고|하며|되며|이며)\\s*,\\s*",
@@ -38,7 +45,10 @@
     "severity": "S2",
     "kind": "regex",
     "pattern": ",\\s*(?:그리고|하지만|그러나|따라서|또한|게다가|그러므로|즉)\\s",
-    "threshold": { "scope": "document", "count": 1 },
+    "threshold": {
+      "scope": "document",
+      "count": 1
+    },
     "guidance": "쉼표를 마침표로 바꾸고 접속부사가 새 문장을 열게 한다."
   },
   {
@@ -47,7 +57,10 @@
     "severity": "S3",
     "kind": "regex",
     "pattern": "[가-힣]{1,6},\\s*[가-힣]{1,6},\\s*[가-힣]{1,6}(?:을|를|이|가|은|는)",
-    "threshold": { "scope": "document", "count": 1 },
+    "threshold": {
+      "scope": "document",
+      "count": 1
+    },
     "guidance": "짧은 목록은 첫 쌍을 와/과로 잇거나 띄어쓰기만 남긴다."
   },
   {
@@ -55,12 +68,18 @@
     "name": "줄표 과다 사용",
     "severity": "S2",
     "kind": "regex",
-    "pattern": "[—–]",
-    "threshold": { "scope": "paragraph", "count": 1 },
+    "pattern": "(?<=\\s)—(?=\\s)",
+    "threshold": {
+      "scope": "paragraph",
+      "count": 1
+    },
     "autofix": [
-      { "pattern": "\\s*[—–]\\s*([^—–\\n]+?)\\s*[—–]\\s*", "replacement": " (\\1) " }
+      {
+        "pattern": "\\s—\\s([^—\\n|]+?)\\s—\\s",
+        "replacement": " (\\1) "
+      }
     ],
-    "guidance": "쌍으로 쓰인 줄표는 괄호로, 홀로 쓰인 줄표는 문장 나누기로 바꾼다."
+    "guidance": "쌍으로 쓰인 줄표는 괄호로, 홀로 쓰인 줄표는 문장 나누기로 바꾼다. 숫자 범위의 en-dash는 올바른 표기이므로 대상이 아니다."
   },
   {
     "id": 7,
@@ -68,9 +87,15 @@
     "severity": "S2",
     "kind": "regex",
     "pattern": "[가-힣]\\s*:\\s*$",
-    "threshold": { "scope": "document", "count": 1 },
+    "threshold": {
+      "scope": "document",
+      "count": 1
+    },
     "autofix": [
-      { "pattern": "((?:습니다|입니다|합니다))\\s*:\\s*$", "replacement": "\\1." },
+      {
+        "pattern": "((?:습니다|입니다|합니다))\\s*:\\s*$",
+        "replacement": "\\1."
+      },
       {
         "pattern": "^(\\s*(?:\\*\\*)?[가-힣][가-힣 ]{0,10}(?:\\*\\*)?)\\s*:\\s*$",
         "replacement": "\\1"

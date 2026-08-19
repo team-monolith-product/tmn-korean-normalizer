@@ -12,6 +12,8 @@ FENCED_CODE = re.compile(r"^```.*?^```", re.MULTILINE | re.DOTALL)
 INLINE_CODE = re.compile(r"`[^`\n]+`")
 URL = re.compile(r"https?://\S+")
 MARKDOWN_LINK_TARGET = re.compile(r"\]\([^)\s]+\)")
+TABLE_ROW = re.compile(r"^[ \t]*\|.*$", re.MULTILINE)
+HEADING = re.compile(r"^[ \t]*#{1,6} .*$", re.MULTILINE)
 DIRECT_QUOTE = re.compile(r"[\"“][^\"”\n]{1,200}[\"”]")
 
 SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?…])\s+|\n+")
@@ -47,10 +49,26 @@ class MaskMap:
     fix_free: tuple[Span, ...]
 
 
+NON_PROSE = (
+    FENCED_CODE,
+    INLINE_CODE,
+    URL,
+    MARKDOWN_LINK_TARGET,
+    TABLE_ROW,
+    HEADING,
+)
+
+
 def build_mask(text: str) -> MaskMap:
+    """표와 헤딩은 산문이 아니다.
+
+    표 칸은 명사구 나열이라 품사 비율을 왜곡하고, 칸 구분자를 넘어 매치가
+    형성되면 표가 깨진다. 헤딩도 명사구이며 원본 스킬이 결론 헤딩을 예외로
+    둔다.
+    """
     detect_free = tuple(
         Span(match.start(), match.end())
-        for pattern in (FENCED_CODE, INLINE_CODE, URL, MARKDOWN_LINK_TARGET)
+        for pattern in NON_PROSE
         for match in pattern.finditer(text)
     )
     fix_free = tuple(
@@ -96,13 +114,17 @@ def _split(text: str, boundary: re.Pattern[str]) -> tuple[Segment, ...]:
     segments = []
     cursor = 0
     for match in boundary.finditer(text):
-        chunk = text[cursor : match.start()]
-        if chunk.strip():
+        if _has_prose(text[cursor : match.start()]):
             segments.append(_trimmed(text, cursor, match.start()))
         cursor = match.end()
-    if text[cursor:].strip():
+    if _has_prose(text[cursor:]):
         segments.append(_trimmed(text, cursor, len(text)))
     return tuple(segments)
+
+
+def _has_prose(chunk: str) -> bool:
+    """자리표시자만 남은 조각은 분석 단위로 세지 않는다."""
+    return bool(chunk.replace(PLACEHOLDER, "").strip())
 
 
 def _trimmed(text: str, start: int, end: int) -> Segment:
