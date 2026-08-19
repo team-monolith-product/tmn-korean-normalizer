@@ -220,3 +220,11 @@ def test_paragraph_scope_still_works_for_rules_that_want_it():
     assert finding.count == 2
     assert finding.location is not None
     assert finding.location.index == 0
+
+
+def test_empty_intensifier_needs_the_modifier_position():
+    """필수의료·주요국은 붙여 쓰는 합성어다. 관형어가 아니다."""
+    assert 108 not in ids_of("필수의료 인력이 모자란다. 주요국이 대응에 나섰다.")
+    assert 108 not in ids_of("핵심은 구조에 있다. 본질은 다르다.")
+    assert 108 in ids_of("핵심 정리를 붙였다.")
+    assert 108 in ids_of("핵심적인 위치를 차지한다.")

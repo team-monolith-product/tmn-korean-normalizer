@@ -63,7 +63,8 @@ def test_colon_after_predicate_becomes_period():
 
 
 def test_label_colon_is_dropped():
-    assert fixed("주요 특징:\n1. 속도") == "주요 특징\n1. 속도"
+    """콜론과 함께 공허한 관형어 '주요'도 지워진다."""
+    assert fixed("주요 특징:\n1. 속도") == "특징\n1. 속도"
 
 
 def test_closing_idiom_is_deleted():
@@ -86,7 +87,7 @@ def test_anchored_rules_respect_real_line_ends():
     """보호 구간을 기준으로 조각내면 ^ $ 앵커가 조각 끝을 줄 끝으로 착각한다."""
     text = "주요 특징:\n1. 속도\n\n설치 방법은 다음과 같습니다: `npm i` 를 실행하세요."
     result = fixed(text)
-    assert "주요 특징\n" in result
+    assert "특징\n" in result
     assert "다음과 같습니다: `npm i`" in result
 
 
