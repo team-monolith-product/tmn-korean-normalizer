@@ -5,7 +5,10 @@
     "severity": "S2",
     "kind": "regex",
     "pattern": "에\\s*대(?:해서|해|하여)",
-    "threshold": { "scope": "paragraph", "count": 2 },
+    "threshold": {
+      "scope": "document",
+      "count": 2
+    },
     "guidance": "목적격 조사로 직결한다. 의견·사고의 대상일 때만 남긴다."
   },
   {
@@ -14,7 +17,10 @@
     "severity": "S2",
     "kind": "regex",
     "pattern": "(?:을|를)?\\s*통(?:해서|해|하여)",
-    "threshold": { "scope": "paragraph", "count": 3 },
+    "threshold": {
+      "scope": "document",
+      "count": 3
+    },
     "guidance": "~로, ~해서, ~함으로써로 분산한다."
   },
   {
@@ -23,7 +29,10 @@
     "severity": "S1",
     "kind": "regex",
     "pattern": "[가-힣]에\\s*있어(?:서)?(?=\\s)",
-    "threshold": { "scope": "document", "count": 1 },
+    "threshold": {
+      "scope": "document",
+      "count": 1
+    },
     "autofix": [
       {
         "pattern": "([가-힣])에\\s*있어서?(?=\\s*(?:[가-힣]+\\s+){0,2}[가-힣]+(?:은|는|이|가|을|를|의|도)\\s)",
@@ -38,7 +47,10 @@
     "severity": "S2",
     "kind": "regex",
     "pattern": "(?:와|과)\\s*관련(?:하여|한|된|해)",
-    "threshold": { "scope": "paragraph", "count": 3 },
+    "threshold": {
+      "scope": "document",
+      "count": 3
+    },
     "guidance": "명사구로 직결하거나 능동 동사로 바꾼다."
   },
   {
@@ -47,7 +59,10 @@
     "severity": "S2",
     "kind": "regex",
     "pattern": "에\\s*기반(?:하여|한|해)|(?:을|를)\\s*바탕으로",
-    "threshold": { "scope": "paragraph", "count": 2 },
+    "threshold": {
+      "scope": "document",
+      "count": 2
+    },
     "guidance": "~로, ~을 보고, ~을 토대로 분산한다. 정착된 합성어는 예외다."
   },
   {
@@ -56,7 +71,10 @@
     "severity": "S1",
     "kind": "regex",
     "pattern": "(?:을|를)\\s*가지고\\s*있",
-    "threshold": { "scope": "document", "count": 1 },
+    "threshold": {
+      "scope": "document",
+      "count": 1
+    },
     "guidance": "형용사나 ~이/가 있다로 환원한다."
   },
   {
@@ -65,13 +83,31 @@
     "severity": "S1",
     "kind": "regex",
     "pattern": "되어(?:지|진|집|졌|져)",
-    "threshold": { "scope": "document", "count": 1 },
+    "threshold": {
+      "scope": "document",
+      "count": 1
+    },
     "autofix": [
-      { "pattern": "되어진", "replacement": "된" },
-      { "pattern": "되어집", "replacement": "됩" },
-      { "pattern": "되어졌", "replacement": "됐" },
-      { "pattern": "되어져", "replacement": "되어" },
-      { "pattern": "되어지", "replacement": "되" }
+      {
+        "pattern": "되어진",
+        "replacement": "된"
+      },
+      {
+        "pattern": "되어집",
+        "replacement": "됩"
+      },
+      {
+        "pattern": "되어졌",
+        "replacement": "됐"
+      },
+      {
+        "pattern": "되어져",
+        "replacement": "되어"
+      },
+      {
+        "pattern": "되어지",
+        "replacement": "되"
+      }
     ],
     "guidance": "단일 피동으로 되돌린다. 행위자가 분명하면 능동으로 바꾼다."
   },
@@ -81,7 +117,10 @@
     "severity": "S2",
     "kind": "regex",
     "pattern": "에\\s*의(?:해|하여)",
-    "threshold": { "scope": "paragraph", "count": 3 },
+    "threshold": {
+      "scope": "document",
+      "count": 3
+    },
     "guidance": "행위자를 주어로 올려 능동으로 바꾼다."
   },
   {
@@ -90,7 +129,10 @@
     "severity": "S2",
     "kind": "regex",
     "pattern": "[가-힣]\\s*수\\s*있",
-    "threshold": { "scope": "paragraph", "count": 3 },
+    "threshold": {
+      "scope": "document",
+      "count": 3
+    },
     "guidance": "단언으로 바꾼다. 진짜 가능성·능력·허가일 때만 남긴다."
   },
   {
@@ -99,7 +141,10 @@
     "severity": "S2",
     "kind": "regex",
     "pattern": "(?:을|를)\\s*위(?:해|하여|한)",
-    "threshold": { "scope": "paragraph", "count": 2 },
+    "threshold": {
+      "scope": "document",
+      "count": 2
+    },
     "guidance": "~려고, ~고자로 분산하거나 명사에 조사를 직결한다."
   },
   {
@@ -108,7 +153,10 @@
     "severity": "S1",
     "kind": "regex",
     "pattern": "(?:는|은|이|가)\\s*[가-힣]+(?:을|를)\\s*(?:가져온|가져옵|가져왔|만든다|만듭니다|일으킨|일으킵|제공한다|제공합니다|이끈다|이끕니다)",
-    "threshold": { "scope": "document", "count": 1 },
+    "threshold": {
+      "scope": "document",
+      "count": 1
+    },
     "guidance": "구체 주어로 바꾸거나 추상 주어를 부사구로 내린다."
   },
   {
@@ -117,7 +165,10 @@
     "severity": "S2",
     "kind": "regex",
     "pattern": "(?:라|다)는\\s*점에서",
-    "threshold": { "scope": "paragraph", "count": 3 },
+    "threshold": {
+      "scope": "document",
+      "count": 3
+    },
     "guidance": "연결어미 ~서, ~기 때문에로 환원한다."
   },
   {
@@ -126,7 +177,10 @@
     "severity": "S2",
     "kind": "regex",
     "pattern": "[가-힣]\\s*것(?:이다|입니다|이며|이고)",
-    "threshold": { "scope": "paragraph", "count": 3 },
+    "threshold": {
+      "scope": "document",
+      "count": 3
+    },
     "guidance": "현재형 단언으로 바꾼다. 진짜 예측·추정·의지만 남긴다."
   }
 ]

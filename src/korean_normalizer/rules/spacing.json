@@ -5,7 +5,9 @@
     "severity": "S2",
     "kind": "metric",
     "metric": "dependent_noun_spacing_uniformity",
-    "bound": { "gte": 1.0 },
+    "bound": {
+      "gte": 1.0
+    },
     "guidance": "검출만 한다. 붙여쓰기로 바꾸면 한글 맞춤법 제42항 위반이므로 자동 교정하지 않는다."
   },
   {
@@ -14,7 +16,9 @@
     "severity": "S2",
     "kind": "metric",
     "metric": "auxiliary_verb_spacing_uniformity",
-    "bound": { "gte": 1.0 },
+    "bound": {
+      "gte": 1.0
+    },
     "guidance": "검출만 한다. 붙여쓰기는 한글 맞춤법 제47항 허용 범위 안에서 사람이 판단한다."
   },
   {
@@ -23,7 +27,10 @@
     "severity": "S3",
     "kind": "regex",
     "pattern": "\\d+\\s+(?:개|명|시|권|가지|번|년|월|일|원|장|회|분|초|편|대|마리|송이)(?![가-힣])",
-    "threshold": { "scope": "document", "count": 1 },
+    "threshold": {
+      "scope": "document",
+      "count": 1
+    },
     "guidance": "비격식 맥락이면 붙여 쓴다. 격식 문서의 큰 수는 그대로 둔다."
   }
 ]

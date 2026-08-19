@@ -1,8 +1,7 @@
 """규칙 정의를 로드하고 검증한다.
 
-1~40번은 DaleSeo/korean-skills humanizer 스킬을 그대로 옮긴 것이고,
-101번부터는 팀이 실사용에서 찾아 덧붙인 규칙이다. 원본 집합을 건드리지
-않으려고 번호대를 나눴다.
+1~40번은 DaleSeo/korean-skills humanizer 스킬에서 왔고 101번부터는 팀이
+실사용에서 찾아 덧붙였다. 출처만 다를 뿐 둘 다 자유롭게 고친다.
 
 정규식 규칙과 통계 규칙은 필요한 필드가 겹치지 않는다. 한 클래스에 담고
 kind 문자열로 갈라 쓰면 절반이 항상 None이 되므로 타입을 나눈다.
@@ -14,7 +13,7 @@ from __future__ import annotations
 import json
 import re
 from collections import Counter
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from functools import lru_cache
 from importlib import resources
 
@@ -37,8 +36,6 @@ RULE_FILES = (
     "translation.json",
     "extra.json",
 )
-
-UPSTREAM_IDS = frozenset(range(1, 41))
 
 
 class RuleError(ValueError):
@@ -206,21 +203,9 @@ def build_rule(raw: dict, category: str) -> Rule:
     raise RuleError(f"rule {rule_id}: unknown kind '{kind}'")
 
 
-def widen_scope(rule: Rule) -> Rule:
-    """문단 임계를 문서 임계로 넓힌다.
-
-    상류 스킬은 같은 표현이 한 문단에 몰릴 때만 신호로 본다. 실제 글은
-    문단마다 하나씩 흩뿌리는 쪽이 흔해 임계에 닿지 않는다. 정의 자체는
-    상류 JSON 그대로 두고 로드 뒤에 스코프만 바꿔 차이를 한곳에 남긴다.
-    """
-    if isinstance(rule, RegexRule) and rule.scope == "paragraph":
-        return replace(rule, scope="document")
-    return rule
-
-
 @lru_cache(maxsize=1)
 def load_rules() -> tuple[Rule, ...]:
-    """원본 40개와 팀 추가분을 합쳐 id 순으로 반환한다."""
+    """패키지에 담긴 규칙 전부를 id 순으로 반환한다."""
     rules: list[Rule] = []
     package = resources.files("korean_normalizer") / "rules"
     for filename in RULE_FILES:
@@ -232,4 +217,4 @@ def load_rules() -> tuple[Rule, ...]:
     duplicates = [rule_id for rule_id, seen in counted.items() if seen > 1]
     if duplicates:
         raise RuleError(f"duplicate rule ids: {sorted(duplicates)}")
-    return tuple(sorted(map(widen_scope, rules), key=lambda rule: rule.id))
+    return tuple(sorted(rules, key=lambda rule: rule.id))

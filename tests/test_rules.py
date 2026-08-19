@@ -2,26 +2,19 @@ import pytest
 
 from korean_normalizer import metrics
 from korean_normalizer import rules as rules_module
-from korean_normalizer.rules import (
-    UPSTREAM_IDS,
-    MetricRule,
-    RuleError,
-    build_rule,
-    load_rules,
-)
+from korean_normalizer.rules import MetricRule, RuleError, build_rule, load_rules
 
 TIER_A = {3, 6, 7, 15, 17, 19, 27, 31, 37, 108}
+BORROWED_IDS = set(range(1, 41)) - {38}
 TEAM_IDS = {101, 102, 103, 104, 105, 106, 108, 109, 111}
 
 
-def test_upstream_forty_patterns_are_all_present():
-    assert {rule.id for rule in load_rules()} >= UPSTREAM_IDS
+def test_rule_set_is_complete():
+    assert {rule.id for rule in load_rules()} == BORROWED_IDS | TEAM_IDS
 
 
-def test_team_rules_use_a_separate_id_range():
-    """원본 이식 집합을 건드리지 않으려고 번호대를 나눴다."""
-    ids = {rule.id for rule in load_rules()}
-    assert ids == UPSTREAM_IDS | TEAM_IDS
+def test_team_rules_live_in_their_own_file():
+    """출처를 구분하려고 번호대와 파일을 나눴다. 양쪽 다 자유롭게 고친다."""
     assert all(rule.category == "extra" for rule in load_rules() if rule.id >= 101)
 
 
@@ -176,20 +169,17 @@ def test_tier_matches_the_documented_taxonomy():
         by_tier.setdefault(rule.tier, set()).add(rule.id)
     assert by_tier["A"] == TIER_A
     assert by_tier["C"] == {11, 12, 13}
-    assert by_tier["B"] == (UPSTREAM_IDS | TEAM_IDS) - TIER_A - {11, 12, 13}
+    assert by_tier["B"] == (BORROWED_IDS | TEAM_IDS) - TIER_A - {11, 12, 13}
 
 
-def test_paragraph_scope_is_widened_to_document():
-    """상류 정의는 문단이지만 팀은 문서 단위로 읽는다."""
-    package = rules_module.resources.files("korean_normalizer") / "rules"
-    raw = rules_module.json.loads(
-        (package / "translation.json").read_text(encoding="utf-8")
+def test_every_regex_rule_counts_across_the_document():
+    """문단마다 하나씩 흩뿌리는 글이 흔해 임계를 문서 단위로 통일했다."""
+    assert all(
+        rule.scope == "document" for rule in load_rules() if rule.kind == "regex"
     )
-    upstream = {entry["id"]: entry.get("threshold", {}) for entry in raw}
-    assert upstream[25]["scope"] == "paragraph"
-    assert next(r for r in load_rules() if r.id == 25).scope == "document"
 
 
-def test_widen_scope_leaves_document_rules_untouched():
-    document_rule = next(r for r in load_rules() if r.id == 31)
-    assert rules_module.widen_scope(document_rule) is document_rule
+def test_hype_rule_is_not_duplicated():
+    """38번 hype 군집은 105번 밀도 규칙으로 합쳤다."""
+    assert 38 not in {rule.id for rule in load_rules()}
+    assert 105 in {rule.id for rule in load_rules()}

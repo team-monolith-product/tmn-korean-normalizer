@@ -1,4 +1,5 @@
 from korean_normalizer.detect import analyze, grade
+from korean_normalizer.rules import build_rule
 
 
 def ids_of(text: str) -> set[int]:
@@ -192,3 +193,30 @@ def test_translation_vocabulary_rule_spares_compound_words():
 
 def test_translation_vocabulary_rule_leaves_plain_prose_alone():
     assert 111 not in ids_of("어제 비가 와서 우산을 챙겼다.")
+
+
+def test_paragraph_scope_still_works_for_rules_that_want_it():
+    """현재 규칙은 전부 문서 스코프지만 문단 단위 판정 기능은 남겨 둔다.
+
+    규칙 14처럼 '같은 단락에 몰릴 때만 신호'가 맞는 것들이 있어 되돌릴 여지를 둔다.
+    """
+    rule = build_rule(
+        {
+            "id": 900,
+            "name": "테스트용 문단 규칙",
+            "severity": "S2",
+            "kind": "regex",
+            "pattern": "표적",
+            "threshold": {"scope": "paragraph", "count": 2},
+            "guidance": "g",
+        },
+        "test",
+    )
+    spread = "표적 하나입니다.\n\n표적 둘입니다."
+    clustered = "표적 하나와 표적 둘입니다.\n\n다른 문단입니다."
+
+    assert analyze(spread, (rule,)).findings == ()
+    finding = analyze(clustered, (rule,)).findings[0]
+    assert finding.count == 2
+    assert finding.location is not None
+    assert finding.location.index == 0

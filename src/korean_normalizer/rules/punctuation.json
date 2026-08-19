@@ -28,7 +28,7 @@
     "kind": "regex",
     "pattern": "(?:(?<!그리)(?<!그러)[가-힣](?:면서|으며|지만|는데|고|며)|(?<![에게로])[가-힣]서)\\s*,",
     "threshold": {
-      "scope": "paragraph",
+      "scope": "document",
       "count": 3
     },
     "autofix": [
@@ -70,7 +70,7 @@
     "kind": "regex",
     "pattern": "(?<=\\s)—(?=\\s)",
     "threshold": {
-      "scope": "paragraph",
+      "scope": "document",
       "count": 1
     },
     "autofix": [
