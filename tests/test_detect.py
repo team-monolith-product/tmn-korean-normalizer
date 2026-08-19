@@ -132,23 +132,21 @@ def test_team_rule_catches_hype_spread_across_the_document():
     assert 38 not in ids_of(text)
 
 
-def test_team_rule_catches_gloss_parentheses():
-    text = "결과가 IPO(상장)로 이어졌다. 지분을 매각(처분)했다. 수익(이익)을 냈다."
-    assert 106 in ids_of(text)
+def test_team_rule_catches_every_parenthesis():
+    """팀 답변 스타일은 괄호 부연을 예외 없이 금지한다."""
+    assert 106 in ids_of("결과가 IPO(상장)로 이어졌다.")
+    assert 106 in ids_of("Y Combinator(YC)는 액셀러레이터다.")
+    assert 106 in ids_of("전각 괄호（부연）도 잡는다.")
 
 
-def test_gloss_rule_leaves_abbreviation_glosses_alone():
-    """축약어와 원어 병기는 괄호를 쓰는 정당한 자리다."""
-    text = (
-        "Y Combinator(YC)는 액셀러레이터다. "
-        "MFN(Most Favored Nation) SAFE로 투자한다. "
-        "약 6.5억~7억 원(50만 달러)을 넣는다."
-    )
-    assert 106 not in ids_of(text)
+def test_parenthesis_rule_ignores_code_and_link_targets():
+    """코드와 링크 타깃의 괄호는 문장부호가 아니다."""
+    assert 106 not in ids_of("`function App() {}` 을 정의한다.")
+    assert 106 not in ids_of("[문서](https://example.com/a(b))를 보라.")
 
 
-def test_team_rule_catches_nested_parentheses():
-    assert 107 in ids_of("이 방식(가장 유리한 조건(MFN)으로 전환)을 쓴다.")
+def test_prose_without_parentheses_is_clean():
+    assert 106 not in ids_of("결과가 IPO로 상장하며 이어졌다.")
 
 
 def test_team_rule_catches_empty_intensifiers():
