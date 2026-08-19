@@ -27,15 +27,18 @@ def test_comma_sentence_ratio_skips_short_input():
 
 
 def test_comma_relative_position_is_higher_when_commas_sit_late():
-    early = "가, 나다라마바사아자차카타파하입니다."
-    late = "가나다라마바사아자차카타파하, 입니다."
+    early = "가나다, 라마바 사아자 차카타 파하 가나다 라마바입니다."
+    late = "가나다 라마바 사아자 차카타 파하 가나다, 라마바입니다."
     assert value_of("comma_relative_position", early) < value_of(
         "comma_relative_position", late
     )
 
 
-def test_comma_relative_position_needs_a_comma():
-    assert value_of("comma_relative_position", "쉼표가 없습니다.") is None
+def test_comma_relative_position_counts_comma_free_sentences_as_zero():
+    """논문 정의다. 쉼표 없는 문장을 빼면 값이 0.45 근처로 몰려 갈리지 않는다."""
+    assert (
+        value_of("comma_relative_position", "쉼표가 없습니다. 하나 더 없습니다.") == 0.0
+    )
 
 
 def test_dependent_noun_spacing_uniformity_flags_perfect_consistency():

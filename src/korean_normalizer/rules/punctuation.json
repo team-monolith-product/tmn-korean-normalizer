@@ -12,14 +12,14 @@
   },
   {
     "id": 2,
-    "name": "영어식 쉼표 배치",
+    "name": "쉼표 상대 위치",
     "severity": "S2",
     "kind": "metric",
     "metric": "comma_relative_position",
     "bound": {
-      "gt": 0.15
+      "gt": 0.087
     },
-    "guidance": "문장 뒤쪽 쉼표를 앞으로 옮기거나 제거한다. 한국어는 SOV라 뒤쪽 쉼표가 어색하다."
+    "guidance": "쉼표가 문장 뒤쪽에 몰려 있다. 앞으로 옮기거나 지운다. 경계는 KatFish 에세이·초록 말뭉치에서 잡았다."
   },
   {
     "id": 3,

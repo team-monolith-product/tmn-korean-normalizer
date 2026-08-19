@@ -12,6 +12,7 @@ from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import lru_cache
+from itertools import pairwise
 
 from .segment import PLACEHOLDER, Segment, split_sentences
 
@@ -100,18 +101,62 @@ def _comma_sentence_ratio(context: MetricContext) -> float | None:
     return with_comma / len(context.sentences)
 
 
+def _comma_stats(context: MetricContext) -> list[dict[str, float]] | None:
+    """문장별 쉼표 통계. 논문 구현을 그대로 따른다.
+
+    쉼표가 없는 문장도 0으로 넣어 평균한다. 쉼표가 있는 문장만 평균하면
+    값이 0.45 근처로 몰려 사람 글과 AI 글이 갈리지 않는다. 위치는 글자가
+    아니라 형태소 인덱스로 잰다.
+
+    근거: Shinwoo-Park/detecting_llm_generated_korean_text_through_linguistic_analysis
+    의 lingustic_analysis/comma_feature_analysis.py
+    """
+    tokens_per_sentence = _tokens_per_sentence(context.text)
+    if not tokens_per_sentence:
+        return None
+    out = []
+    for forms in tokens_per_sentence:
+        commas = [i for i, form in enumerate(forms) if form == ","]
+        if not commas:
+            out.append({"position": 0.0, "rate": 0.0, "segment": 0.0})
+            continue
+        bounds = [0, *commas, len(forms)]
+        out.append(
+            {
+                "position": statistics.fmean(i / len(forms) for i in commas),
+                "rate": len(commas) / len(forms),
+                "segment": statistics.fmean(
+                    max(end - start - 1, 0) for start, end in pairwise(bounds)
+                ),
+            }
+        )
+    return out
+
+
 @metric("comma_relative_position")
 def _comma_relative_position(context: MetricContext) -> float | None:
-    positions = [
-        index / (len(sentence.text) - 1)
-        for sentence in context.sentences
-        if len(sentence.text) > 1
-        for index, char in enumerate(sentence.text)
-        if char == ","
-    ]
-    if not positions:
+    stats = _comma_stats(context)
+    if not stats:
         return None
-    return statistics.fmean(positions)
+    return statistics.fmean(s["position"] for s in stats)
+
+
+@metric("comma_morpheme_rate")
+def _comma_morpheme_rate(context: MetricContext) -> float | None:
+    """형태소 대비 쉼표 비율의 문장 평균."""
+    stats = _comma_stats(context)
+    if not stats:
+        return None
+    return statistics.fmean(s["rate"] for s in stats)
+
+
+@metric("comma_segment_length")
+def _comma_segment_length(context: MetricContext) -> float | None:
+    """쉼표로 나뉜 분절의 평균 형태소 수."""
+    stats = _comma_stats(context)
+    if not stats:
+        return None
+    return statistics.fmean(s["segment"] for s in stats)
 
 
 def _spacing_uniformity(pattern: re.Pattern[str], text: str) -> float | None:
@@ -211,6 +256,19 @@ def _hype_density(context: MetricContext) -> float | None:
     if len(words) < MIN_WORDS_FOR_DENSITY:
         return None
     return len(HYPE_WORD.findall(context.text)) / len(words) * 100
+
+
+def _tokens_per_sentence(text: str) -> list[list[str]] | None:
+    """문장별 형태소 표면형. 분석기가 없으면 None."""
+    analyzer = _kiwi()
+    if analyzer is None:
+        return None
+    out = []
+    for sentence in analyzer.split_into_sents(text):
+        forms = [token.form for token in analyzer.tokenize(sentence.text)]
+        if forms:
+            out.append(forms)
+    return out or None
 
 
 def _kiwi_tags(text: str) -> list[str] | None:

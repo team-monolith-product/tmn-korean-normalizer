@@ -198,5 +198,27 @@
       "gt": 0.5
     },
     "guidance": "목록과 굵은 글씨로 쪼개지 말고 문단으로 잇는다. 항목이 정말 병렬이고 순서가 없을 때만 목록을 쓴다. 강조는 문장 구성으로 하고 굵은 글씨에 기대지 않는다."
+  },
+  {
+    "id": 118,
+    "name": "형태소 대비 쉼표 비율",
+    "severity": "S2",
+    "kind": "metric",
+    "metric": "comma_morpheme_rate",
+    "bound": {
+      "gt": 0.014
+    },
+    "guidance": "형태소 수에 견줘 쉼표가 많다. 문장을 나누거나 쉼표를 지운다."
+  },
+  {
+    "id": 119,
+    "name": "쉼표 분절 길이",
+    "severity": "S2",
+    "kind": "metric",
+    "metric": "comma_segment_length",
+    "bound": {
+      "gt": 5.6
+    },
+    "guidance": "쉼표로 나눈 토막이 길다. 긴 절을 이어 붙이지 말고 문장으로 끊는다."
   }
 ]
