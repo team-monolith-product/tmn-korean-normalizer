@@ -156,3 +156,22 @@ def test_team_rule_catches_empty_intensifiers():
 def test_empty_intensifier_rule_reads_headings():
     """공허한 강조는 헤딩에 몰린다. 헤딩이 어휘 규칙에 보여야 잡힌다."""
     assert 108 in ids_of("## 1. 핵심 수익 구조\n\n## 2. 핵심 축\n")
+
+
+def test_team_rule_catches_negation_parallel_rhetoric():
+    """아닌 것을 먼저 말하고 뒤집는 구성. 한 번만 나와도 신호다."""
+    assert 109 in ids_of("단순한 자금 투입을 넘어 표준 절차를 결합했다.")
+    assert 109 in ids_of("돈만 넣는 데서 그치지 않습니다. 절차도 묶었습니다.")
+    assert 109 in ids_of("그 자리에 머무르지 않고 다음 단계로 갔다.")
+
+
+def test_negation_parallel_rule_leaves_plain_prose_alone():
+    assert 109 not in ids_of("어제 비가 와서 우산을 챙겼다. 길이 막혔다.")
+
+
+def test_contrastive_definition_needs_repetition():
+    """한 번은 평범한 정정이고 반복되면 수사다."""
+    assert 110 not in ids_of("철수가 아니라 영희가 왔다.")
+    assert 110 in ids_of(
+        "철수가 아니라 영희가 왔다. 오늘이 아니라 내일 만난다. 여기가 아니라 저기다."
+    )
