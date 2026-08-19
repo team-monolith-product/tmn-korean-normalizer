@@ -166,16 +166,25 @@ def test_empty_intensifier_is_removed_from_modifier_position():
     assert "두 가지 알고리즘을 쓴다" in result
 
 
-def test_empty_intensifier_survives_where_deleting_breaks_the_sentence():
-    """'핵심적인 위치'는 형용사가 서술을 떠받치고 '핵심이 된다'는 명사다."""
+def test_empty_intensifier_covers_all_seven_words():
     text = (
-        "핵심적인 위치를 차지한다. 주요 지표를 본다.\n\n"
-        "지연 단축의 핵심이 된다. 핵심을 짚었다."
+        "핵심 정리를 붙였다. 근본 이유를 찾는다.\n\n"
+        "본질적으로 다르다. 필수 조건이다. 궁극 목표는 하나다. 총체적 난국이다."
     )
     result = fixed(text)
-    assert "핵심적인 위치를 차지한다" in result
-    assert "핵심이 된다" in result
-    assert "핵심을 짚었다" in result
+    for word in ("핵심", "근본", "본질", "필수", "궁극", "총체"):
+        assert word not in result
+    assert "정리를 붙였다" in result
+    assert "이유를 찾는다" in result
+
+
+def test_empty_intensifier_spares_compounds_and_head_nouns():
+    """필수의료는 고유 용어고 '핵심은 X다'의 핵심은 주어다."""
+    text = "필수의료 인력이 모자란다. 주요국이 나섰다.\n\n핵심은 구조에 있다."
+    result = fixed(text)
+    assert "필수의료 인력" in result
+    assert "주요국이" in result
+    assert "핵심은 구조에" in result
 
 
 def test_fix_never_merges_paragraphs():
