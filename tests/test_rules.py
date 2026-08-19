@@ -5,8 +5,7 @@ from korean_normalizer import rules as rules_module
 from korean_normalizer.rules import MetricRule, RuleError, build_rule, load_rules
 
 TIER_A = {3, 6, 7, 15, 17, 19, 27, 31, 37, 108, 112, 113, 114}
-# 2·11·12·13은 사람 글과 AI 글을 구분하지 못해 뺐다. tools/calibrate.py 참조.
-BORROWED_IDS = set(range(1, 41)) - {2, 11, 12, 13, 38}
+BORROWED_IDS = set(range(1, 41)) - {38}
 TEAM_IDS = {101, 102, 103, 104, 105, 106, 108, 109, 111, 112, 113, 114, 115, 116, 117}
 
 
@@ -169,8 +168,8 @@ def test_tier_matches_the_documented_taxonomy():
     for rule in load_rules():
         by_tier.setdefault(rule.tier, set()).add(rule.id)
     assert by_tier["A"] == TIER_A
-    assert by_tier["B"] == (BORROWED_IDS | TEAM_IDS) - TIER_A
-    assert set(by_tier) == {"A", "B"}
+    assert by_tier["C"] == {11, 12, 13}
+    assert by_tier["B"] == (BORROWED_IDS | TEAM_IDS) - TIER_A - {11, 12, 13}
 
 
 def test_every_regex_rule_counts_across_the_document():

@@ -11,8 +11,8 @@ LLM이 매번 읽고 눈대중으로 판정한다. 그 판정 중 기계가 할 
 | 계층 | 패턴 | 개수 | 처리 |
 |---|---|---|---|
 | A | 3, 6, 7, 15, 17, 19, 27, 31, 37, 108, 112, 113, 114 | 13 | 검출 + 자동 교정 |
-| B | 나머지 전부 | 37 | 검출만, 교정은 사람이나 LLM |
-
+| B | 1, 2, 4, 5, 8~10, 14, 16, 18, 20~26, 28~30, 32~36, 39, 40, 101~111 | 그 외 | 검출만, 교정은 사람이나 LLM |
+| C | 11, 12, 13 | 3 | 형태소 분석기가 있을 때만 검출 |
 
 1~40번은 원본 스킬을 그대로 옮긴 것이다. 다만 임계 스코프 하나를 팀 기준으로 바꿨다.
 상류는 같은 표현이 한 문단에 몰릴 때만 신호로 보는데, 실제 글은 문단마다 하나씩 흩뿌리는
@@ -80,6 +80,12 @@ git clone git@github.com:team-monolith-product/tmn-korean-normalizer.git ~/teamm
 uv tool install ~/teammono/tmn-korean-normalizer
 ```
 
+품사 지표까지 쓰려면 형태소 분석기를 함께 넣는다. 없으면 패턴 11~13은 건너뛴다.
+
+```bash
+uv tool install --with kiwipiepy ~/teammono/tmn-korean-normalizer
+```
+
 갱신은 다음과 같이 한다.
 
 ```bash
@@ -92,7 +98,7 @@ cd ~/teammono/tmn-korean-normalizer && git pull && uv tool install --force .
 
 ```bash
 cd ~/teammono/tmn-korean-normalizer
-uv sync
+uv sync --extra pos
 uv run korean-normalizer detect examples/ai-sample.md
 ```
 
@@ -163,29 +169,6 @@ korean-normalizer rules
 `-들`을 지우면 앞말의 받침이 사라져 조사가 어긋난다. `사용자들이`에서 `들`만 빼면
 `사용자이`가 되므로, 치환 뒤 받침을 보고 조사를 다시 고른다.
 
-## 지표 규칙을 넣기 전에
-
-새 지표 규칙의 경계는 반드시 사람이 쓴 한국어 산문과 대조해 정한다. 원본 스킬에서 가져온
-규칙 2·11·12·13은 그 검증 없이 경계를 옮겨 적었다가 사람 글에서도 전부 발화해 뺐다.
-
-```bash
-python3 tools/collect_corpus.py                       # 위키백과 2019년 판본 26편
-python3 tools/calibrate.py noun_ratio human_corpus.json
-```
-
-2019년 이전 판본만 받는다. 그 뒤 편집은 AI 도움을 받았을 수 있다.
-
-| 지표 | 당시 경계 | 사람 위키백과 26편 | AI 답변 30건 |
-|---|---|---|---|
-| 쉼표 상대 위치 | > 0.15 | 중앙 0.466, 발화 100% | 중앙 0.471, 발화 100% |
-| 명사 비율 | > 0.35 | 중앙 0.766, 발화 100% | 중앙 0.788, 발화 100% |
-| 동사·형용사 비율 | < 0.25 | 중앙 0.156, 발화 100% | 중앙 0.147, 발화 100% |
-| 품사 3연쇄 다양성 | < 0.5 | 700토큰 창 0.514 | 700토큰 창 0.544 |
-
-앞의 셋은 경계가 한국어 산문이 도달할 수 없는 값이라 모든 입력에서 발화했다. 논문이 말한
-비율과 이 구현의 분모가 달랐다. 3연쇄는 길이가 길수록 값이 떨어져 문서 길이를 맞춰 다시
-쟀더니 AI가 오히려 높았다. 규칙이 가정한 방향과 반대다.
-
 ## 규칙 추가
 
 `src/korean_normalizer/rules/*.json`에 항목을 더한다. 코드 수정은 필요 없다.
@@ -229,4 +212,5 @@ uv run ruff format --check src tests
 
 - 패턴 정의, S1/S2/S3 심각도, 자연도 등급: [DaleSeo/korean-skills](https://github.com/DaleSeo/korean-skills) (MIT)
 - 통계 근거: [KatFishNet, arXiv:2503.00032](https://arxiv.org/abs/2503.00032)
+- 형태소 분석기: [kiwipiepy](https://github.com/bab2min/kiwipiepy)
 - 맞춤법과 문장부호 규정: [국립국어원 어문규범](https://kornorms.korean.go.kr/regltn/regltnView.do?regltn_code=0001)

@@ -17,6 +17,8 @@ from dataclasses import dataclass
 from functools import lru_cache
 from importlib import resources
 
+from . import metrics
+
 SEVERITIES = ("S1", "S2", "S3")
 SCOPES = ("document", "paragraph")
 COMPARATORS = {
@@ -28,6 +30,7 @@ COMPARATORS = {
 RULE_FILES = (
     "punctuation.json",
     "spacing.json",
+    "pos.json",
     "vocabulary.json",
     "structure.json",
     "translation.json",
@@ -74,11 +77,6 @@ class BaseRule:
     def has_autofix(self) -> bool:
         return False
 
-    @property
-    def tier(self) -> str:
-        """A는 자동 교정, B는 검출만."""
-        return "B"
-
 
 @dataclass(frozen=True)
 class RegexRule(BaseRule):
@@ -94,6 +92,7 @@ class RegexRule(BaseRule):
 
     @property
     def tier(self) -> str:
+        """A는 자동 교정, C는 형태소 분석기 필요, B는 검출만."""
         return "A" if self.autofix else "B"
 
     @property
@@ -106,6 +105,10 @@ class RegexRule(BaseRule):
 class MetricRule(BaseRule):
     metric: str
     bound: Bound
+
+    @property
+    def tier(self) -> str:
+        return "C" if metrics.needs_analyzer(self.metric) else "B"
 
     @property
     def kind(self) -> str:
@@ -183,8 +186,6 @@ def _bound(raw: dict, rule_id: object) -> Bound:
 
 
 def _metric_rule(raw: dict, common: dict, rule_id: object) -> MetricRule:
-    from . import metrics
-
     name = _require(raw, "metric", rule_id)
     if name not in metrics.registered():
         raise RuleError(f"rule {rule_id}: unknown metric '{name}'")
