@@ -2,15 +2,27 @@ import pytest
 
 from korean_normalizer import metrics
 from korean_normalizer import rules as rules_module
-from korean_normalizer.rules import MetricRule, RuleError, build_rule, load_rules
+from korean_normalizer.rules import (
+    UPSTREAM_IDS,
+    MetricRule,
+    RuleError,
+    build_rule,
+    load_rules,
+)
 
 TIER_A = {3, 6, 7, 15, 17, 19, 27, 31, 37}
+TEAM_IDS = {101, 102, 103, 104}
 
 
-def test_loads_forty_patterns():
-    rules = load_rules()
-    assert len(rules) == 40
-    assert {rule.id for rule in rules} == set(range(1, 41))
+def test_upstream_forty_patterns_are_all_present():
+    assert {rule.id for rule in load_rules()} >= UPSTREAM_IDS
+
+
+def test_team_rules_use_a_separate_id_range():
+    """원본 이식 집합을 건드리지 않으려고 번호대를 나눴다."""
+    ids = {rule.id for rule in load_rules()}
+    assert ids == UPSTREAM_IDS | TEAM_IDS
+    assert all(rule.category == "extra" for rule in load_rules() if rule.id >= 101)
 
 
 def test_autofix_is_limited_to_tier_a():
@@ -164,4 +176,4 @@ def test_tier_matches_the_documented_taxonomy():
         by_tier.setdefault(rule.tier, set()).add(rule.id)
     assert by_tier["A"] == TIER_A
     assert by_tier["C"] == {11, 12, 13}
-    assert by_tier["B"] == set(range(1, 41)) - TIER_A - {11, 12, 13}
+    assert by_tier["B"] == (UPSTREAM_IDS | TEAM_IDS) - TIER_A - {11, 12, 13}

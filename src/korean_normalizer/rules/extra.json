@@ -1,0 +1,50 @@
+[
+  {
+    "id": 101,
+    "name": "'하나의' 부정관사 직역",
+    "severity": "S2",
+    "kind": "regex",
+    "pattern": "하나의\\s+[가-힣A-Za-z]",
+    "threshold": {
+      "scope": "document",
+      "count": 2
+    },
+    "guidance": "영어 a/an을 옮긴 자리면 통째로 지운다. 개수가 정보일 때만 남기고, 그때도 '~ 하나'로 뒤에 붙인다."
+  },
+  {
+    "id": 102,
+    "name": "지시대명사 복수형 번역투",
+    "severity": "S3",
+    "kind": "regex",
+    "pattern": "이것들|그것들|저것들|이들(?=[을이은의과와도만])",
+    "threshold": {
+      "scope": "document",
+      "count": 1
+    },
+    "guidance": "가리키는 명사를 다시 쓰거나 통째로 생략한다. 한국어는 지시사를 복수로 만들지 않는다."
+  },
+  {
+    "id": 103,
+    "name": "피동 중복 '~되어 ~되는'",
+    "severity": "S2",
+    "kind": "regex",
+    "pattern": "되어\\s+[가-힣]{1,6}되(?:는|다|어|고|며|었|던)",
+    "threshold": {
+      "scope": "document",
+      "count": 1
+    },
+    "guidance": "피동을 한 번만 쓰거나 능동으로 바꾼다. '반복되어 사용되는' -> '반복해 쓰는'."
+  },
+  {
+    "id": 104,
+    "name": "완전무결 과장 표현",
+    "severity": "S2",
+    "kind": "regex",
+    "pattern": "완벽(?:한|하게|히|해)|완전무결|최고의|최상의|궁극적인|유일무이|무한한|모든\\s*것을\\s*(?:해결|가능)",
+    "threshold": {
+      "scope": "document",
+      "count": 1
+    },
+    "guidance": "지우거나 측정 가능한 서술로 바꾼다. '완벽한 웹 페이지' -> '동작하는 웹 페이지'."
+  }
+]

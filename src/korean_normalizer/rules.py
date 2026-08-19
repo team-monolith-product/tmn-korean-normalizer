@@ -1,5 +1,9 @@
 """규칙 정의를 로드하고 검증한다.
 
+1~40번은 DaleSeo/korean-skills humanizer 스킬을 그대로 옮긴 것이고,
+101번부터는 팀이 실사용에서 찾아 덧붙인 규칙이다. 원본 집합을 건드리지
+않으려고 번호대를 나눴다.
+
 정규식 규칙과 통계 규칙은 필요한 필드가 겹치지 않는다. 한 클래스에 담고
 kind 문자열로 갈라 쓰면 절반이 항상 None이 되므로 타입을 나눈다.
 그 덕에 통계 규칙은 자동 교정을 가질 수 없다는 사실이 구조로 강제된다.
@@ -31,7 +35,10 @@ RULE_FILES = (
     "vocabulary.json",
     "structure.json",
     "translation.json",
+    "extra.json",
 )
+
+UPSTREAM_IDS = frozenset(range(1, 41))
 
 
 class RuleError(ValueError):
@@ -201,7 +208,7 @@ def build_rule(raw: dict, category: str) -> Rule:
 
 @lru_cache(maxsize=1)
 def load_rules() -> tuple[Rule, ...]:
-    """패키지에 포함된 40개 규칙을 id 순으로 반환한다."""
+    """원본 40개와 팀 추가분을 합쳐 id 순으로 반환한다."""
     rules: list[Rule] = []
     package = resources.files("korean_normalizer") / "rules"
     for filename in RULE_FILES:

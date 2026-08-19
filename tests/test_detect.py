@@ -91,3 +91,24 @@ def test_headings_are_not_prose():
 
 def test_em_dash_in_prose_is_still_caught():
     assert 6 in ids_of("이 방법은 — 널리 쓰이듯 — 효과가 있다.")
+
+
+def test_team_rule_catches_indefinite_article_translation():
+    assert 101 in ids_of("하나의 완벽한 결과를 냈다. 하나의 방법이 더 있다.")
+
+
+def test_team_rule_catches_plural_demonstrative():
+    assert 102 in ids_of("조각을 만들고 이들을 조합한다.")
+
+
+def test_team_rule_catches_stacked_passive():
+    assert 103 in ids_of("반복되어 사용되는 요소를 하나만 만든다.")
+
+
+def test_team_rule_catches_absolute_praise():
+    assert 104 in ids_of("완벽한 웹 페이지를 만든다.")
+
+
+def test_team_rules_leave_plain_korean_alone():
+    text = "어제 비가 왔다. 우산을 챙겼다.\n\n길이 막혀 지하철로 갈아탔다."
+    assert ids_of(text) & {101, 102, 103, 104} == set()

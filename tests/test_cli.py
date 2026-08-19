@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from korean_normalizer.cli import main
+from korean_normalizer.rules import load_rules
 
 AI_TEXT = "결과가 분석되어집니다. 현대 사회에 있어서 데이터가 중요하다.\n"
 
@@ -71,12 +72,12 @@ def test_rules_listing(capsys):
     assert main(["rules"]) == 0
     output = capsys.readouterr().out
     assert "tier A" in output
-    assert output.count("\n") == 40
+    assert output.count("\n") == len(load_rules())
 
 
 def test_rules_json_listing(capsys):
     assert main(["rules", "--format", "json"]) == 0
-    assert len(json.loads(capsys.readouterr().out)) == 40
+    assert len(json.loads(capsys.readouterr().out)) == len(load_rules())
 
 
 class _FakeStdin:
