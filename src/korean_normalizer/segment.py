@@ -16,7 +16,8 @@ TABLE_ROW = re.compile(r"^[ \t]*\|.*$", re.MULTILINE)
 HEADING = re.compile(r"^[ \t]*#{1,6} .*$", re.MULTILINE)
 DIRECT_QUOTE = re.compile(r"[\"“][^\"”\n]{1,200}[\"”]")
 
-SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?…])\s+|\n+")
+# 숫자 뒤 마침표는 목록 번호나 날짜·버전 표기지 문장 끝이 아니다.
+SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?…])(?<![0-9]\.)\s+|\n+")
 PARAGRAPH_BOUNDARY = re.compile(r"\n\s*\n")
 
 

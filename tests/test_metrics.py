@@ -27,15 +27,18 @@ def test_comma_sentence_ratio_skips_short_input():
 
 
 def test_comma_relative_position_is_higher_when_commas_sit_late():
-    early = "가, 나다라마바사아자차카타파하입니다."
-    late = "가나다라마바사아자차카타파하, 입니다."
+    early = "가나다, 라마바 사아자 차카타 파하 가나다 라마바입니다."
+    late = "가나다 라마바 사아자 차카타 파하 가나다, 라마바입니다."
     assert value_of("comma_relative_position", early) < value_of(
         "comma_relative_position", late
     )
 
 
-def test_comma_relative_position_needs_a_comma():
-    assert value_of("comma_relative_position", "쉼표가 없습니다.") is None
+def test_comma_relative_position_counts_comma_free_sentences_as_zero():
+    """논문 정의다. 쉼표 없는 문장을 빼면 값이 0.45 근처로 몰려 갈리지 않는다."""
+    assert (
+        value_of("comma_relative_position", "쉼표가 없습니다. 하나 더 없습니다.") == 0.0
+    )
 
 
 def test_dependent_noun_spacing_uniformity_flags_perfect_consistency():
@@ -99,30 +102,6 @@ def test_repeated_subject_runs_is_low_when_subjects_alternate():
     assert value_of("repeated_subject_runs", text) == 1.0
 
 
-def test_pos_metrics_are_skipped_without_kiwipiepy(monkeypatch):
-    monkeypatch.setattr(metrics, "_kiwi_tags", lambda text: None)
-    assert value_of("noun_ratio", "명사 비율을 잰다.") is None
-    assert value_of("verb_adjective_ratio", "명사 비율을 잰다.") is None
-    assert value_of("pos_trigram_diversity", "명사 비율을 잰다.") is None
-
-
-def test_pos_metrics_use_tags_when_available(monkeypatch):
-    tags = ["NNG", "JKO", "VV", "EF", "NNG", "NNP", "VA"] * 10
-    monkeypatch.setattr(metrics, "_kiwi_tags", lambda text: tags)
-    assert value_of("noun_ratio", "무시됨") == pytest.approx(3 / 5)
-    assert value_of("verb_adjective_ratio", "무시됨") == pytest.approx(2 / 5)
-    assert value_of("pos_trigram_diversity", "무시됨") < 0.2
-
-
-def test_pos_metrics_skip_short_text(monkeypatch):
-    """짧은 글은 비율이 요동치므로 판정하지 않는다."""
-    tags = ["NNG", "JKO", "VV", "EF"]
-    monkeypatch.setattr(metrics, "_kiwi_tags", lambda text: tags)
-    assert value_of("noun_ratio", "무시됨") is None
-    assert value_of("verb_adjective_ratio", "무시됨") is None
-    assert value_of("pos_trigram_diversity", "무시됨") is None
-
-
 def test_hype_density_separates_marketing_prose_from_plain_prose():
     hyped = "압도적인 성장과 독보적인 기술로 매출이 폭증하며 효율을 극대화한다. " * 12
     plain = "어제 비가 와서 우산을 챙겼다. 길이 막혀 지하철로 갈아탔다. " * 12
@@ -132,3 +111,72 @@ def test_hype_density_separates_marketing_prose_from_plain_prose():
 
 def test_hype_density_skips_short_text():
     assert value_of("hype_density", "압도적인 성장이다.") is None
+
+
+CHOPPY = (
+    "김치찌개는 쉽다.\n신김치가 필수다.\n안 시면 맛이 안 난다.\n"
+    "고기는 목살이 낫다.\n기름이 있어야 한다.\n볶는 게 핵심이다.\n"
+)
+FLOWING = (
+    "김치찌개를 맛있게 끓이려면 신김치가 있어야 하고, 안 시면 감칠맛이 나지 않는다.\n"
+    "고기는 지방이 붙은 목살이 국물 맛을 내는 데 유리하며 삼겹살로 대신해도 괜찮다.\n"
+    "김치를 기름에 볶아야 신맛이 날아가고 감칠맛이 올라오므로 건너뛰면 안 된다.\n"
+    "물을 붓고 센불로 끓인 뒤 중불로 낮춰 스무 해쯤 두면 국물이 진해진다.\n"
+    "두부와 양파는 마지막에 넣어야 형태가 유지되고 대파는 불을 끄기 직전에 올린다.\n"
+)
+
+
+def test_short_sentence_ratio_separates_choppy_from_flowing():
+    assert value_of("short_sentence_ratio", CHOPPY) > 0.30
+    assert value_of("short_sentence_ratio", FLOWING) < 0.30
+
+
+def test_short_sentence_ratio_ignores_list_items():
+    """목록 항목은 원래 짧은 단위라 문장 통계에 넣지 않는다."""
+    listed = FLOWING + "\n".join(f"- 항목 {n}" for n in range(8))
+    assert value_of("short_sentence_ratio", listed) < 0.30
+
+
+def test_short_sentence_ratio_needs_enough_prose():
+    assert value_of("short_sentence_ratio", "짧다.\n또 짧다.") is None
+
+
+def test_intensifier_density_counts_emphasis_adverbs():
+    hyped = "이건 완전히 다르고 매우 중요하며 정말 아주 굉장히 좋은 선택이다. " * 12
+    plain = "어제 비가 와서 우산을 챙겼다. 길이 막혀 지하철로 갈아탔다. " * 12
+    assert value_of("intensifier_density", hyped) > 0.6
+    assert value_of("intensifier_density", plain) == 0.0
+
+
+FRAGMENTED = (
+    "## 핵심 정리\n\n"
+    "- **첫째**: 내용이다\n- **둘째**: 내용이다\n- **셋째**: 내용이다\n\n"
+    "---\n\n## 다음\n\n- **넷째**: 내용이다\n"
+)
+PARAGRAPHED = (
+    "전세 제도가 한국에만 있는 이유는 금융 환경에 있다.\n"
+    "은행 대출이 어렵던 시절 집주인이 세입자 보증금을 사금융처럼 썼다.\n"
+    "이 구조는 집값이 오를 때만 굴러가고 내릴 때 무너진다.\n"
+    "최근 사고가 반복되는 것도 같은 이유다.\n"
+    "보증금을 돌려줄 현금이 없는 집주인이 늘었다.\n"
+)
+
+
+def test_markdown_density_separates_fragmented_from_paragraphs():
+    assert value_of("markdown_density", FRAGMENTED) > 0.5
+    assert value_of("markdown_density", PARAGRAPHED) < 0.5
+
+
+def test_markdown_density_needs_enough_lines():
+    assert value_of("markdown_density", "- 하나\n- 둘") is None
+
+
+def test_comma_metrics_need_the_analyzer(monkeypatch):
+    """형태소 분석기가 없으면 쉼표 지표는 판정하지 않는다."""
+    monkeypatch.setattr(metrics, "_tokens_per_sentence", lambda text: None)
+    for name in (
+        "comma_relative_position",
+        "comma_morpheme_rate",
+        "comma_segment_length",
+    ):
+        assert value_of(name, "쉼표가, 있는, 문장입니다.") is None

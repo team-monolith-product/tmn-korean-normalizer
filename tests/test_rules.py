@@ -4,9 +4,28 @@ from korean_normalizer import metrics
 from korean_normalizer import rules as rules_module
 from korean_normalizer.rules import MetricRule, RuleError, build_rule, load_rules
 
-TIER_A = {3, 6, 7, 15, 17, 19, 27, 31, 37, 108}
-BORROWED_IDS = set(range(1, 41)) - {38}
-TEAM_IDS = {101, 102, 103, 104, 105, 106, 108, 109, 111}
+TIER_A = {3, 6, 7, 15, 17, 19, 27, 31, 37, 108, 112, 113, 114, 117}
+# 11·12·13은 논문에 없거나 길이를 재고 있어 뺐다. tools/pos_ngram_check.py 참조.
+BORROWED_IDS = set(range(1, 41)) - {11, 12, 13, 38}
+TEAM_IDS = {
+    101,
+    102,
+    103,
+    104,
+    105,
+    106,
+    108,
+    109,
+    111,
+    112,
+    113,
+    114,
+    115,
+    116,
+    117,
+    118,
+    119,
+}
 
 
 def test_rule_set_is_complete():
@@ -113,11 +132,12 @@ def test_rejects_duplicate_ids(monkeypatch):
     load_rules.cache_clear()
 
 
-def test_metric_rules_cannot_carry_autofix():
-    """통계 규칙은 자동 교정 필드를 갖지 못하는 것이 타입으로 보장된다."""
-    metric_rules = [rule for rule in load_rules() if isinstance(rule, MetricRule)]
-    assert metric_rules
-    assert all(not hasattr(rule, "autofix") for rule in metric_rules)
+def test_metric_rules_may_carry_autofix():
+    """무엇으로 판정하느냐와 고칠 수 있느냐는 별개다. 117이 그 예다."""
+    by_id = {rule.id: rule for rule in load_rules()}
+    assert isinstance(by_id[117], MetricRule)
+    assert by_id[117].has_autofix
+    assert not by_id[105].has_autofix
 
 
 def test_kind_is_derived_from_the_type():
@@ -168,8 +188,9 @@ def test_tier_matches_the_documented_taxonomy():
     for rule in load_rules():
         by_tier.setdefault(rule.tier, set()).add(rule.id)
     assert by_tier["A"] == TIER_A
-    assert by_tier["C"] == {11, 12, 13}
-    assert by_tier["B"] == (BORROWED_IDS | TEAM_IDS) - TIER_A - {11, 12, 13}
+    analyzer_rules = {2, 118, 119}
+    assert by_tier["C"] == analyzer_rules
+    assert by_tier["B"] == (BORROWED_IDS | TEAM_IDS) - TIER_A - analyzer_rules
 
 
 def test_every_regex_rule_counts_across_the_document():
