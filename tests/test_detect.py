@@ -169,9 +169,7 @@ def test_negation_parallel_rule_leaves_plain_prose_alone():
     assert 109 not in ids_of("어제 비가 와서 우산을 챙겼다. 길이 막혔다.")
 
 
-def test_contrastive_definition_needs_repetition():
-    """한 번은 평범한 정정이고 반복되면 수사다."""
-    assert 110 not in ids_of("철수가 아니라 영희가 왔다.")
-    assert 110 in ids_of(
-        "철수가 아니라 영희가 왔다. 오늘이 아니라 내일 만난다. 여기가 아니라 저기다."
-    )
+def test_contrastive_definition_is_caught_at_first_use():
+    """정정도 우회다. 처음부터 맞는 쪽만 말하면 된다."""
+    assert 109 in ids_of("철수가 아니라 영희가 왔다.")
+    assert 109 not in ids_of("영희가 왔다.")
