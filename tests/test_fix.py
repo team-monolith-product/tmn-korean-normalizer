@@ -315,3 +315,16 @@ def test_tables_keep_their_line_structure():
     text = MARKDOWN_HEAVY + "\n| 구분 | 값 |\n| --- | --- |\n| 가 | 나 |\n"
     result = fixed(text)
     assert "| 구분 | 값 |\n| --- | --- |\n| 가 | 나 |" in result
+
+
+TABLE = "| 항목 | 값 |\n| --- | --- |\n| **굵게** | 13:00–13:40 (40분) — 비고 |\n"
+
+
+def test_bold_inside_table_cells_is_stripped():
+    assert "**" not in fixed(MARKDOWN_HEAVY + "\n" + TABLE)
+
+
+def test_punctuation_rules_still_leave_tables_alone():
+    """줄표 규칙이 칸 구분자를 넘으면 표가 깨진다."""
+    text = "글이 길다 — 그래서 나눈다. " * 6 + "\n\n" + TABLE
+    assert "13:00–13:40 (40분) — 비고" in fixed(text)

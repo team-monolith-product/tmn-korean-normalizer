@@ -52,7 +52,7 @@ def _expand(entry: AutoFix, match) -> str:
     return head + agree(head, match.group(entry.josa_group) or "")
 
 
-def _substitute(text: str, entry: AutoFix) -> tuple[str, int]:
+def _substitute(text: str, entry: AutoFix, *, layout: bool) -> tuple[str, int]:
     """보호 구간과 겹치는 매치를 건너뛰며 한 번 치환한다.
 
     보호 구간을 기준으로 텍스트를 미리 조각내면 안 된다. 조각 경계를
@@ -60,7 +60,7 @@ def _substitute(text: str, entry: AutoFix) -> tuple[str, int]:
     sub는 입력 문자열 기준 오프셋을 주므로 같은 문자열에서 뜬 구간과
     좌표계가 맞는다. 패스가 끝나면 구간을 다시 뜬다.
     """
-    protected = protected_spans(text)
+    protected = protected_spans(text, layout=layout)
     replaced = 0
 
     def render(match) -> str:
@@ -81,7 +81,9 @@ def _run(text: str, rules: list[Rule]) -> tuple[str, Counter[int]]:
         before = current
         for rule in rules:
             for entry in rule.autofix:
-                current, replaced = _substitute(current, entry)
+                current, replaced = _substitute(
+                    current, entry, layout=not rule.sees_layout
+                )
                 counts[rule.id] += replaced
         if current == before:
             break

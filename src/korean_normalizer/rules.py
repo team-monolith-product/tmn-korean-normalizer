@@ -65,6 +65,11 @@ class AutoFix:
     josa_group: int | None = None
 
 
+# 헤딩과 표 칸까지 훑어야 하는 규칙 갈래. 공허한 관형어와 굵은 글씨가
+# 본문보다 그 자리에 몰린다.
+LEXICAL_CATEGORIES = frozenset({"vocabulary", "translation", "extra"})
+
+
 @dataclass(frozen=True)
 class BaseRule:
     id: int
@@ -76,6 +81,11 @@ class BaseRule:
     @property
     def has_autofix(self) -> bool:
         return False
+
+    @property
+    def sees_layout(self) -> bool:
+        """헤딩과 표 칸까지 보는 규칙인지. 검출과 교정이 같은 답을 써야 한다."""
+        return self.category in LEXICAL_CATEGORIES
 
 
 @dataclass(frozen=True)

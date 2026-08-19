@@ -10,7 +10,6 @@ from .segment import Document
 
 MAX_SAMPLES = 5
 SNIPPET_PAD = 12
-LEXICAL_CATEGORIES = frozenset({"vocabulary", "translation", "extra"})
 
 
 @dataclass(frozen=True)
@@ -79,7 +78,7 @@ def _matches_in(rule: RegexRule, haystack: str, offset: int) -> list[tuple[int, 
 
 def _haystack(rule: RegexRule, document: Document) -> str:
     """어휘 규칙만 헤딩을 본다. 문장부호·구조 규칙에서 헤딩은 관습이 다르다."""
-    return document.scrubbed if rule.category in LEXICAL_CATEGORIES else document.prose
+    return document.scrubbed if rule.sees_layout else document.prose
 
 
 def _regex_findings(rule: RegexRule, document: Document) -> list[Finding]:
