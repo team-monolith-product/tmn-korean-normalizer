@@ -192,3 +192,28 @@ def test_rules_that_replace_nothing_are_absent_from_changes():
     result = apply("결과가 분석되어집니다. 핵심 지표와 주요 항목을 본다.")
     assert all(change.replacements > 0 for change in result.changes)
     assert {change.rule_id for change in result.changes} == {31, 108}
+
+
+def test_work_titles_get_proper_brackets():
+    """영화·노래 제목은 홑화살괄호를 쓴다. 아스키 꺾쇠는 문장부호가 아니다."""
+    assert fixed("<로망스>를 들었다.") == "〈로망스〉를 들었다."
+    assert fixed("영화 <금지된 장난>을 봤다.") == "영화 〈금지된 장난〉을 봤다."
+
+
+def test_html_tags_are_not_work_titles():
+    text = "설명입니다.\n\n<div>내용</div> 과 <https://a.b> 를 남긴다."
+    assert "<div>" in fixed(text)
+    assert "<https://a.b>" in fixed(text)
+
+
+def test_closing_label_line_is_deleted():
+    text = "본문입니다.\n\n한 줄 요약\n\n로망스는 사랑 이야기입니다.\n"
+    result = fixed(text)
+    assert "한 줄 요약" not in result
+    assert "로망스는 사랑 이야기입니다." in result
+
+
+def test_closing_label_with_content_after_it_survives():
+    """'## 3. 요약: 비교표'처럼 뒤에 내용이 붙으면 표제가 아니다."""
+    text = "본문입니다.\n\n## 3. 요약: 비교표\n\n내용입니다.\n"
+    assert "## 3. 요약: 비교표" in fixed(text)

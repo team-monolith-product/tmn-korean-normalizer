@@ -104,6 +104,9 @@ def apply(text: str, rules: tuple[Rule, ...] | None = None) -> FixResult:
     문단을 나누지 않으면 치환 패턴의 꼬리 `\s*`가 문단 사이 빈 줄을 먹는다.
     '결론적으로,\n\n다음'에서 결말 관용구를 지우면 두 문단이 한 문단으로
     합쳐진다. 문단 스코프 규칙이 하나도 없어도 이 순회는 지울 수 없다.
+
+    교정으로 문단이 통째로 비면 앞 구분자까지 함께 버린다. 113처럼 줄을
+    지우는 규칙이 빈 줄만 남기지 않게 하려는 것이다.
     """
     rules = rules if rules is not None else load_rules()
     by_id = {rule.id: rule for rule in rules}
@@ -120,7 +123,8 @@ def apply(text: str, rules: tuple[Rule, ...] | None = None) -> FixResult:
             text[paragraph.start : paragraph.end],
             [by_id[rule_id] for rule_id in active],
         )
-        pieces.extend((text[cursor : paragraph.start], fixed))
+        if fixed.strip():
+            pieces.extend((text[cursor : paragraph.start], fixed))
         counts += chunk_counts
         cursor = paragraph.end
     pieces.append(text[cursor:])
