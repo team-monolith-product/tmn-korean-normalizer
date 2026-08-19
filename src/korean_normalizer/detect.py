@@ -158,6 +158,8 @@ def analyze_document(
     """이미 분절된 문서를 분석한다. 교정 쪽에서 문서를 두 번 만들지 않도록 나눴다."""
     rules = rules if rules is not None else load_rules()
     context = metrics.context_of(document.prose)
+    # 마크다운 구조 지표만 헤딩이 살아 있는 본문을 본다. 헤딩도 세야 하기 때문이다.
+    structure = metrics.context_of(document.scrubbed)
 
     findings: list[Finding] = []
     skipped: list[str] = []
@@ -165,7 +167,8 @@ def analyze_document(
         if isinstance(rule, RegexRule):
             findings.extend(_regex_findings(rule, document))
             continue
-        value = metrics.compute(rule.metric, context)
+        source = structure if rule.metric == "markdown_density" else context
+        value = metrics.compute(rule.metric, source)
         if value is None:
             skipped.append(f"{rule.id}:{rule.metric}")
         elif rule.bound.breached_by(value):

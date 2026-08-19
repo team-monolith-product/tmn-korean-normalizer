@@ -167,3 +167,26 @@ def test_intensifier_density_counts_emphasis_adverbs():
     plain = "어제 비가 와서 우산을 챙겼다. 길이 막혀 지하철로 갈아탔다. " * 12
     assert value_of("intensifier_density", hyped) > 0.6
     assert value_of("intensifier_density", plain) == 0.0
+
+
+FRAGMENTED = (
+    "## 핵심 정리\n\n"
+    "- **첫째**: 내용이다\n- **둘째**: 내용이다\n- **셋째**: 내용이다\n\n"
+    "---\n\n## 다음\n\n- **넷째**: 내용이다\n"
+)
+PARAGRAPHED = (
+    "전세 제도가 한국에만 있는 이유는 금융 환경에 있다.\n"
+    "은행 대출이 어렵던 시절 집주인이 세입자 보증금을 사금융처럼 썼다.\n"
+    "이 구조는 집값이 오를 때만 굴러가고 내릴 때 무너진다.\n"
+    "최근 사고가 반복되는 것도 같은 이유다.\n"
+    "보증금을 돌려줄 현금이 없는 집주인이 늘었다.\n"
+)
+
+
+def test_markdown_density_separates_fragmented_from_paragraphs():
+    assert value_of("markdown_density", FRAGMENTED) > 0.5
+    assert value_of("markdown_density", PARAGRAPHED) < 0.5
+
+
+def test_markdown_density_needs_enough_lines():
+    assert value_of("markdown_density", "- 하나\n- 둘") is None
