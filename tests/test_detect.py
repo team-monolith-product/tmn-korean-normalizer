@@ -173,3 +173,22 @@ def test_contrastive_definition_is_caught_at_first_use():
     """정정도 우회다. 처음부터 맞는 쪽만 말하면 된다."""
     assert 109 in ids_of("철수가 아니라 영희가 왔다.")
     assert 109 not in ids_of("영희가 왔다.")
+
+
+def test_team_rule_filters_translation_vocabulary_without_exception():
+    """catch·close·pillar 직역. 문맥을 가리지 않고 걸러낸다."""
+    assert 111 in ids_of("규칙이 패턴을 잡는다.")
+    assert 111 in ids_of("글을 평서로 닫는다.")
+    assert 111 in ids_of("모델은 네 축으로 나뉜다.")
+    assert 111 in ids_of("핵심 축이 넷이다.")
+
+
+def test_translation_vocabulary_rule_spares_compound_words():
+    """축약·구축·압축·건축은 합성어라 대상이 아니다."""
+    text = "축약어를 설명하고 인프라를 구축하며 압축 파일을 건축 현장에 옮긴다."
+    assert 111 not in ids_of(text)
+    assert 111 not in ids_of("비용을 축소하고 경험을 축적한다.")
+
+
+def test_translation_vocabulary_rule_leaves_plain_prose_alone():
+    assert 111 not in ids_of("어제 비가 와서 우산을 챙겼다.")
