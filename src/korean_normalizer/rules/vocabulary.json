@@ -5,7 +5,10 @@
     "severity": "S1",
     "kind": "regex",
     "pattern": "중요하(?:다|며|고|지만)|중요한|핵심적|효과적|지속\\s?가능한|혁신적|필수적|다양한",
-    "threshold": { "scope": "paragraph", "count": 2 },
+    "threshold": {
+      "scope": "paragraph",
+      "count": 2
+    },
     "guidance": "일반 서술어를 구체적 사실로 바꾼다. 근거 없는 최상급은 지운다."
   },
   {
@@ -14,7 +17,10 @@
     "severity": "S2",
     "kind": "regex",
     "pattern": "(?<![가-힣])(?:진행|실시|수행)(?:하|했|합|한)",
-    "threshold": { "scope": "paragraph", "count": 3 },
+    "threshold": {
+      "scope": "paragraph",
+      "count": 3
+    },
     "autofix": [
       {
         "pattern": "(?<![가-힣])(?:진행|실시|수행)(하|했|합|한)",
@@ -29,7 +35,10 @@
     "severity": "S1",
     "kind": "regex",
     "pattern": "중심에\\s*(?:있|서)|[가-힣A-Z]에서\\s*[가-힣A-Z]까지\\s*모든|의\\s*세계로",
-    "threshold": { "scope": "document", "count": 1 },
+    "threshold": {
+      "scope": "document",
+      "count": 1
+    },
     "guidance": "at the center of, from A to Z 같은 직역을 한국어 표현으로 바꾼다."
   },
   {
@@ -39,7 +48,10 @@
     "kind": "regex",
     "pattern": "(?:많은|여러|다양한|모든|수많은|각종|\\d+\\s*(?:가지|개|명))\\s*[가-힣]+들",
     "exclude": "여러분들",
-    "threshold": { "scope": "paragraph", "count": 3 },
+    "threshold": {
+      "scope": "paragraph",
+      "count": 3
+    },
     "autofix": [
       {
         "pattern": "((?:많은|여러(?!분들)|다양한|모든|수많은|각종)\\s*[가-힣]+)들(이|가|은|는|을|를|과|와)?",
@@ -55,7 +67,10 @@
     "severity": "S2",
     "kind": "regex",
     "pattern": "(?:그것|이것|저것)(?:은|이|을|를)",
-    "threshold": { "scope": "paragraph", "count": 2 },
+    "threshold": {
+      "scope": "paragraph",
+      "count": 2
+    },
     "guidance": "선행사가 명확하면 대명사를 지우고 바로 서술한다."
   },
   {
@@ -64,9 +79,15 @@
     "severity": "S2",
     "kind": "regex",
     "pattern": "해당\\s+[가-힣]|본\\s+(?:문서|연구|보고서|장|절|건|사안)|당\\s+(?:사|기관)|동\\s+(?:기간|사)",
-    "threshold": { "scope": "paragraph", "count": 3 },
+    "threshold": {
+      "scope": "paragraph",
+      "count": 3
+    },
     "autofix": [
-      { "pattern": "해당\\s+(?=[가-힣])", "replacement": "이 " },
+      {
+        "pattern": "해당\\s+(?=[가-힣])",
+        "replacement": "이 "
+      },
       {
         "pattern": "본\\s+(문서|연구|보고서|장|절|건|사안)",
         "replacement": "이 \\1"
@@ -80,7 +101,9 @@
     "severity": "S2",
     "kind": "metric",
     "metric": "repeated_subject_runs",
-    "bound": { "gte": 3 },
+    "bound": {
+      "gte": 3
+    },
     "guidance": "연속 문장의 주어가 같으면 첫 문장에만 남기고 생략한다."
   },
   {
@@ -89,11 +112,17 @@
     "severity": "S1",
     "kind": "regex",
     "pattern": "결론적으로|요약하면|정리하면|시사하는\\s*바가|주목할\\s*만하|본질적으로|핵심적으로|지금이야말로|할\\s*때(?:다|이다|입니다)|인\\s*셈이(?:다|에요|죠)|(?:라|다)는\\s*뜻이(?:다|에요|죠)",
-    "threshold": { "scope": "document", "count": 1 },
+    "threshold": {
+      "scope": "document",
+      "count": 1
+    },
     "autofix": [
-      { "pattern": "(?:결론적으로|요약하면|정리하면),?\\s*", "replacement": "" }
+      {
+        "pattern": "(?:결론적으로|요약하면|정리하면),?\\s*",
+        "replacement": ""
+      }
     ],
-    "guidance": "결말 관용구를 지우고 평서로 닫는다. 결론 섹션 헤딩은 예외다."
+    "guidance": "결말 관용구를 지우고 평서로 맺는다. 결론 섹션 헤딩은 예외다."
   },
   {
     "id": 38,
@@ -101,7 +130,10 @@
     "severity": "S2",
     "kind": "regex",
     "pattern": "혁신적|획기적|압도적|치명적|전례\\s*없는|강력한|파격적|엄청난|놀라운",
-    "threshold": { "scope": "paragraph", "count": 3 },
+    "threshold": {
+      "scope": "paragraph",
+      "count": 3
+    },
     "guidance": "구체 수치로 바꾸고 단락당 하나만 남긴다."
   },
   {
@@ -111,7 +143,10 @@
     "kind": "regex",
     "pattern": "[가-힣]{1,3}적\\s+[가-힣]+",
     "exclude": "전략적\\s*파트너십|구조적\\s*조정",
-    "threshold": { "scope": "paragraph", "count": 3 },
+    "threshold": {
+      "scope": "paragraph",
+      "count": 3
+    },
     "guidance": "'~적 N'을 풀어쓰거나 명사+명사로 바꾸고 단락당 하나로 줄인다."
   }
 ]
