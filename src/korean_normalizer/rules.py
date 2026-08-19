@@ -30,7 +30,6 @@ COMPARATORS = {
 RULE_FILES = (
     "punctuation.json",
     "spacing.json",
-    "pos.json",
     "vocabulary.json",
     "structure.json",
     "translation.json",

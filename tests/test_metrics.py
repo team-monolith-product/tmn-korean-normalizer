@@ -102,30 +102,6 @@ def test_repeated_subject_runs_is_low_when_subjects_alternate():
     assert value_of("repeated_subject_runs", text) == 1.0
 
 
-def test_pos_metrics_are_skipped_without_kiwipiepy(monkeypatch):
-    monkeypatch.setattr(metrics, "_kiwi_tags", lambda text: None)
-    assert value_of("noun_ratio", "명사 비율을 잰다.") is None
-    assert value_of("verb_adjective_ratio", "명사 비율을 잰다.") is None
-    assert value_of("pos_trigram_diversity", "명사 비율을 잰다.") is None
-
-
-def test_pos_metrics_use_tags_when_available(monkeypatch):
-    tags = ["NNG", "JKO", "VV", "EF", "NNG", "NNP", "VA"] * 10
-    monkeypatch.setattr(metrics, "_kiwi_tags", lambda text: tags)
-    assert value_of("noun_ratio", "무시됨") == pytest.approx(3 / 5)
-    assert value_of("verb_adjective_ratio", "무시됨") == pytest.approx(2 / 5)
-    assert value_of("pos_trigram_diversity", "무시됨") < 0.2
-
-
-def test_pos_metrics_skip_short_text(monkeypatch):
-    """짧은 글은 비율이 요동치므로 판정하지 않는다."""
-    tags = ["NNG", "JKO", "VV", "EF"]
-    monkeypatch.setattr(metrics, "_kiwi_tags", lambda text: tags)
-    assert value_of("noun_ratio", "무시됨") is None
-    assert value_of("verb_adjective_ratio", "무시됨") is None
-    assert value_of("pos_trigram_diversity", "무시됨") is None
-
-
 def test_hype_density_separates_marketing_prose_from_plain_prose():
     hyped = "압도적인 성장과 독보적인 기술로 매출이 폭증하며 효율을 극대화한다. " * 12
     plain = "어제 비가 와서 우산을 챙겼다. 길이 막혀 지하철로 갈아탔다. " * 12
@@ -193,3 +169,14 @@ def test_markdown_density_separates_fragmented_from_paragraphs():
 
 def test_markdown_density_needs_enough_lines():
     assert value_of("markdown_density", "- 하나\n- 둘") is None
+
+
+def test_comma_metrics_need_the_analyzer(monkeypatch):
+    """형태소 분석기가 없으면 쉼표 지표는 판정하지 않는다."""
+    monkeypatch.setattr(metrics, "_tokens_per_sentence", lambda text: None)
+    for name in (
+        "comma_relative_position",
+        "comma_morpheme_rate",
+        "comma_segment_length",
+    ):
+        assert value_of(name, "쉼표가, 있는, 문장입니다.") is None
