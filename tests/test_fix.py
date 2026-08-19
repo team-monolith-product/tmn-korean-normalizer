@@ -158,9 +158,9 @@ def test_en_dash_between_numbers_is_not_a_rhetorical_dash():
 
 
 def test_empty_intensifier_is_removed_from_modifier_position():
-    text = "## 핵심 수익 구조\n\n주요 특징을 본다. 두 가지 핵심 알고리즘을 쓴다."
+    text = "핵심 수익 구조를 본다.\n\n주요 특징을 본다. 두 가지 핵심 알고리즘을 쓴다."
     result = fixed(text)
-    assert result.startswith("수익 구조.")
+    assert result.startswith("수익 구조를 본다.")
     assert "특징을 본다" in result
     assert "두 가지 알고리즘을 쓴다" in result
 
@@ -224,8 +224,8 @@ def test_closing_label_line_is_deleted():
 
 def test_closing_label_with_content_after_it_survives():
     """'요약: 비교표'처럼 뒤에 내용이 붙으면 표제가 아니라 지우지 않는다."""
-    text = "본문입니다.\n\n## 3. 요약: 비교표\n\n내용입니다.\n"
-    assert "요약: 비교표" in fixed(text)
+    text = "본문입니다.\n\n요약: 비교표를 실었습니다.\n\n내용입니다.\n"
+    assert "요약: 비교표를 실었습니다." in fixed(text)
 
 
 def test_announcement_paragraph_is_deleted():
@@ -293,14 +293,16 @@ def test_headings_go_even_in_a_mostly_prose_document():
         "최근 사고가 반복되는 것도 같은 이유다.\n"
         "보증금을 돌려줄 현금이 없는 집주인이 늘었다.\n"
     )
-    assert fixed(text).startswith("제목. 전세 제도가")
+    result = fixed(text)
+    assert "제목" not in result
+    assert result.startswith("전세 제도가")
 
 
-def test_stripped_headings_join_the_next_paragraph():
-    """헤딩 기호를 떼면 서술 없는 한 줄이 남는다. 뒤 문단에 붙인다."""
+def test_headings_are_deleted_with_their_text():
+    """기호만 떼면 서술 없는 한 줄이 남아 비문이 된다. 줄째로 지운다."""
     text = "## 콘웨이 법칙\n\n조직 구조가 설계에 드러납니다.\n"
     assert fixed(MARKDOWN_HEAVY + "\n" + text).endswith(
-        "콘웨이 법칙. 조직 구조가 설계에 드러납니다.\n"
+        "조직 구조가 설계에 드러납니다.\n"
     )
 
 
