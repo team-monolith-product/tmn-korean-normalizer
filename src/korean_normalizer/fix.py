@@ -81,7 +81,7 @@ def _run(text: str, rules: list[Rule]) -> tuple[str, Counter[int]]:
                 counts[rule.id] += replaced
         if current == before:
             break
-    return current, +counts
+    return current, Counter({rule_id: n for rule_id, n in counts.items() if n})
 
 
 def _autofix_targets(document: Document, rules: tuple[Rule, ...]):
@@ -99,6 +99,12 @@ def _autofix_targets(document: Document, rules: tuple[Rule, ...]):
 
 
 def apply(text: str, rules: tuple[Rule, ...] | None = None) -> FixResult:
+    r"""문단 하나씩 교정하고 사이의 빈 줄은 손대지 않고 붙인다.
+
+    문단을 나누지 않으면 치환 패턴의 꼬리 `\s*`가 문단 사이 빈 줄을 먹는다.
+    '결론적으로,\n\n다음'에서 결말 관용구를 지우면 두 문단이 한 문단으로
+    합쳐진다. 문단 스코프 규칙이 하나도 없어도 이 순회는 지울 수 없다.
+    """
     rules = rules if rules is not None else load_rules()
     by_id = {rule.id: rule for rule in rules}
     document = Document.of(text)

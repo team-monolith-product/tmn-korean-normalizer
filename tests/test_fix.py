@@ -175,3 +175,20 @@ def test_empty_intensifier_survives_where_deleting_breaks_the_sentence():
     assert "핵심적인 위치를 차지한다" in result
     assert "핵심이 된다" in result
     assert "핵심을 짚었다" in result
+
+
+def test_fix_never_merges_paragraphs():
+    """치환 패턴의 꼬리 \\s*가 문단 사이 빈 줄을 먹으면 안 된다.
+
+    문단 스코프 규칙이 없어도 apply의 문단 순회가 이걸 막는다. 지우지 말 것.
+    """
+    text = "이 전략은 옳았다. 결론적으로,\n\n다음 분기에도 이어간다."
+    result = fixed(text)
+    assert "결론적으로" not in result
+    assert result == "이 전략은 옳았다. \n\n다음 분기에도 이어간다."
+
+
+def test_rules_that_replace_nothing_are_absent_from_changes():
+    result = apply("결과가 분석되어집니다. 핵심 지표와 주요 항목을 본다.")
+    assert all(change.replacements > 0 for change in result.changes)
+    assert {change.rule_id for change in result.changes} == {31, 108}
