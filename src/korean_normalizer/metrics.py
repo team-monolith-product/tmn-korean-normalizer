@@ -13,7 +13,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from functools import lru_cache
 
-from .segment import Segment, split_sentences
+from .segment import PLACEHOLDER, Segment, split_sentences
 
 MIN_SENTENCES = 3
 MIN_SENTENCES_FOR_RHYTHM = 4
@@ -34,6 +34,17 @@ HYPE_WORD = re.compile(
     r"|가장\s*[가-힣]{2,4}적|최상위|초격차|무궁무진|막대한|어마어마|눈부신"
 )
 MIN_WORDS_FOR_DENSITY = 60
+MIN_PROSE_SENTENCES = 5
+SHORT_SENTENCE = 25
+
+# 목록 항목·가로줄·인용 부호는 산문 문장이 아니다. 원래 짧은 단위라
+# 문장 길이 통계에 넣으면 글이 잘게 끊긴 것처럼 보인다.
+NON_PROSE_LINE = re.compile(r"^[ \t]*(?:[-*+•]\s|\d+[.)]\s|[-=_]{3,}[ \t]*$|>)")
+MARKUP = re.compile(r"[*_`#>|]")
+INTENSIFIER = re.compile(
+    r"완전히|매우|정말로?|아주|굉장히|너무나?|훨씬|확실히|반드시|무조건"
+    r"|되게|꽤나?|상당히|한층|더욱더?|극도로|철저히"
+)
 
 FORMAL = re.compile(r"(?:습니다|ㅂ니다|입니다)[.!?]?$")
 POLITE = re.compile(r"(?:어요|아요|에요|예요|해요|죠|요)[.!?]?$")
@@ -244,6 +255,45 @@ def _pos_trigram_diversity(context: MetricContext) -> float | None:
         return None
     trigrams = [tuple(tags[index : index + 3]) for index in range(len(tags) - 2)]
     return len(set(trigrams)) / len(trigrams)
+
+
+def prose_sentences(context: MetricContext) -> list[str]:
+    """목록과 장식 줄을 뺀 산문 문장만 고른다."""
+    out = []
+    for line in context.text.split("\n"):
+        if NON_PROSE_LINE.match(line):
+            continue
+        clean = MARKUP.sub("", line.replace(PLACEHOLDER, "")).strip()
+        if not clean:
+            continue
+        out.extend(
+            sentence.text.strip()
+            for sentence in split_sentences(clean)
+            if len(sentence.text.strip()) >= 2
+        )
+    return out
+
+
+@metric("short_sentence_ratio")
+def _short_sentence_ratio(context: MetricContext) -> float | None:
+    """산문 문장 중 짧은 것의 비율.
+
+    평균 길이는 잘 갈리지 않는다. 아주 짧은 문장과 아주 긴 문장을 섞어 쓰면
+    평균이 가운데로 모이기 때문이다. 짧은 쪽 비율이 끊김을 더 잘 드러낸다.
+    """
+    lengths = [len(s) for s in prose_sentences(context)]
+    if len(lengths) < MIN_PROSE_SENTENCES:
+        return None
+    return sum(1 for n in lengths if n < SHORT_SENTENCE) / len(lengths)
+
+
+@metric("intensifier_density")
+def _intensifier_density(context: MetricContext) -> float | None:
+    """어절 100개당 강조 부사 수. 완전히·매우·정말 따위다."""
+    words = context.text.split()
+    if len(words) < MIN_WORDS_FOR_DENSITY:
+        return None
+    return len(INTENSIFIER.findall(context.text)) / len(words) * 100
 
 
 def context_of(text: str) -> MetricContext:

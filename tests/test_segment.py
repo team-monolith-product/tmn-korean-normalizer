@@ -98,3 +98,18 @@ def test_tables_are_hidden_from_both_layers():
     document = Document.of("| 시간 | 내용 |\n\n본문입니다.\n")
     assert "시간" not in document.scrubbed
     assert "시간" not in document.prose
+
+
+def test_numbered_list_markers_do_not_end_a_sentence():
+    """'1. 재료 손질' 의 마침표는 목록 번호다."""
+    sentences = split_sentences("1. 재료 손질하기 2. 육수 붓기")
+    assert len(sentences) == 1
+
+
+def test_dates_and_versions_do_not_end_a_sentence():
+    assert len(split_sentences("2025. 3. 5. 회의가 있었다.")) == 1
+    assert len(split_sentences("버전 1.2 를 쓴다. 확인하라.")) == 2
+
+
+def test_real_sentence_ends_still_split():
+    assert len(split_sentences("끝났다. 다음이다. 마지막이다.")) == 3

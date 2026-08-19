@@ -132,3 +132,38 @@ def test_hype_density_separates_marketing_prose_from_plain_prose():
 
 def test_hype_density_skips_short_text():
     assert value_of("hype_density", "압도적인 성장이다.") is None
+
+
+CHOPPY = (
+    "김치찌개는 쉽다.\n신김치가 필수다.\n안 시면 맛이 안 난다.\n"
+    "고기는 목살이 낫다.\n기름이 있어야 한다.\n볶는 게 핵심이다.\n"
+)
+FLOWING = (
+    "김치찌개를 맛있게 끓이려면 신김치가 있어야 하고, 안 시면 감칠맛이 나지 않는다.\n"
+    "고기는 지방이 붙은 목살이 국물 맛을 내는 데 유리하며 삼겹살로 대신해도 괜찮다.\n"
+    "김치를 기름에 볶아야 신맛이 날아가고 감칠맛이 올라오므로 건너뛰면 안 된다.\n"
+    "물을 붓고 센불로 끓인 뒤 중불로 낮춰 스무 해쯤 두면 국물이 진해진다.\n"
+    "두부와 양파는 마지막에 넣어야 형태가 유지되고 대파는 불을 끄기 직전에 올린다.\n"
+)
+
+
+def test_short_sentence_ratio_separates_choppy_from_flowing():
+    assert value_of("short_sentence_ratio", CHOPPY) > 0.30
+    assert value_of("short_sentence_ratio", FLOWING) < 0.30
+
+
+def test_short_sentence_ratio_ignores_list_items():
+    """목록 항목은 원래 짧은 단위라 문장 통계에 넣지 않는다."""
+    listed = FLOWING + "\n".join(f"- 항목 {n}" for n in range(8))
+    assert value_of("short_sentence_ratio", listed) < 0.30
+
+
+def test_short_sentence_ratio_needs_enough_prose():
+    assert value_of("short_sentence_ratio", "짧다.\n또 짧다.") is None
+
+
+def test_intensifier_density_counts_emphasis_adverbs():
+    hyped = "이건 완전히 다르고 매우 중요하며 정말 아주 굉장히 좋은 선택이다. " * 12
+    plain = "어제 비가 와서 우산을 챙겼다. 길이 막혀 지하철로 갈아탔다. " * 12
+    assert value_of("intensifier_density", hyped) > 0.6
+    assert value_of("intensifier_density", plain) == 0.0
