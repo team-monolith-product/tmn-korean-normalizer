@@ -217,3 +217,25 @@ def test_closing_label_with_content_after_it_survives():
     """'## 3. 요약: 비교표'처럼 뒤에 내용이 붙으면 표제가 아니다."""
     text = "본문입니다.\n\n## 3. 요약: 비교표\n\n내용입니다.\n"
     assert "## 3. 요약: 비교표" in fixed(text)
+
+
+def test_announcement_paragraph_is_deleted():
+    """무엇을 하겠다고 예고하지 말고 바로 한다."""
+    text = (
+        "로망스는 맥락에 따라 다릅니다.\n\n"
+        "세 영역을 정리해 드릴게요.\n\n"
+        "첫째는 문학입니다."
+    )
+    result = fixed(text)
+    assert "정리해 드릴게요" not in result
+    assert "로망스는 맥락에 따라 다릅니다." in result
+    assert "첫째는 문학입니다." in result
+
+
+def test_announcement_inside_a_longer_paragraph_survives():
+    """문단 안에 섞인 문장은 실제 약속일 수 있어 사람이 판단한다."""
+    text = (
+        "문의를 받았습니다.\n\n"
+        "담당자가 확인 후 정리해 드리겠습니다. 접수 순서대로 처리합니다."
+    )
+    assert "정리해 드리겠습니다" in fixed(text)
