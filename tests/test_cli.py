@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 
@@ -84,3 +85,15 @@ class _FakeStdin:
 
     def read(self) -> str:
         return self._text
+
+
+def test_missing_file_reports_cleanly_without_a_traceback():
+    with pytest.raises(SystemExit) as failure:
+        main(["detect", "/없는/경로.md"])
+    assert "입력을 읽을 수 없습니다" in str(failure.value)
+
+
+def test_shipped_example_is_readable(capsys):
+    example = Path(__file__).resolve().parent.parent / "examples" / "ai-sample.md"
+    assert main(["detect", str(example)]) == 0
+    assert "자연도 등급: C" in capsys.readouterr().out

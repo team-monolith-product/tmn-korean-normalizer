@@ -12,7 +12,7 @@ allowed-tools: Bash Read Write Edit
 ## 1. 검출
 
 ```bash
-uv run --project ~/repo/tmn-korean-normalizer korean-normalizer detect <파일> --format json
+korean-normalizer detect <파일> --format json
 ```
 
 출력은 `grade`, `counts`, `findings` 세 부분이다. `findings[].guidance`가 각 패턴의
@@ -21,7 +21,7 @@ uv run --project ~/repo/tmn-korean-normalizer korean-normalizer detect <파일> 
 ## 2. 기계적 교정
 
 ```bash
-uv run --project ~/repo/tmn-korean-normalizer korean-normalizer fix <파일> --diff
+korean-normalizer fix <파일> --diff
 ```
 
 Tier A 9개 규칙(3·6·7·15·17·19·27·31·37)만 적용된다. 의미 판단이 필요 없고
@@ -65,8 +65,11 @@ Tier A 9개 규칙(3·6·7·15·17·19·27·31·37)만 적용된다. 의미 판�
 ## 규칙 목록 확인
 
 ```bash
-uv run --project ~/repo/tmn-korean-normalizer korean-normalizer rules
+korean-normalizer rules
 ```
+
+`korean-normalizer` 명령이 없으면 설치되지 않은 것이다. 사용자에게
+`uv tool install ~/teammono/tmn-korean-normalizer` 를 안내하고 멈춘다.
 
 패턴 정의와 심각도 체계는 [DaleSeo/korean-skills](https://github.com/DaleSeo/korean-skills)의
 humanizer 스킬에서 가져왔다. 근거 논문은 [KatFishNet](https://arxiv.org/abs/2503.00032)이다.

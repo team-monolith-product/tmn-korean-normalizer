@@ -17,7 +17,12 @@ SEVERITY_ORDER = ("S1", "S2", "S3")
 def _read(path: str | None) -> str:
     if path is None or path == "-":
         return sys.stdin.read()
-    return Path(path).read_text(encoding="utf-8")
+    try:
+        return Path(path).read_text(encoding="utf-8")
+    except OSError as error:
+        raise SystemExit(
+            f"입력을 읽을 수 없습니다: {path} ({error.strerror})"
+        ) from error
 
 
 def _render_finding(finding: Finding) -> list[str]:

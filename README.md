@@ -25,54 +25,89 @@ Tier A는 예외가 없는 규칙이다. 이중 피동 `되어진다`는 한국�
 
 ## 설치
 
+레포를 클론한다. 팀 관례상 `~/teammono` 아래에 둔다.
+
 ```bash
-uv sync
+git clone git@github.com:team-monolith-product/tmn-korean-normalizer.git ~/teammono/tmn-korean-normalizer
 ```
 
-품사 지표(패턴 11~13)까지 쓰려면 형태소 분석기를 함께 설치한다.
+### 쓰기만 할 때
+
+전역 명령으로 설치한다. 어느 디렉터리에서든 `korean-normalizer`를 쓸 수 있다.
 
 ```bash
+uv tool install ~/teammono/tmn-korean-normalizer
+```
+
+품사 지표까지 쓰려면 형태소 분석기를 함께 넣는다. 없으면 패턴 11~13은 건너뛴다.
+
+```bash
+uv tool install --with kiwipiepy ~/teammono/tmn-korean-normalizer
+```
+
+갱신은 다음과 같이 한다.
+
+```bash
+cd ~/teammono/tmn-korean-normalizer && git pull && uv tool install --force .
+```
+
+### 고칠 때
+
+레포 안에서 개발용 가상환경을 만든다. pytest와 ruff가 함께 설치된다.
+
+```bash
+cd ~/teammono/tmn-korean-normalizer
 uv sync --extra pos
+uv run korean-normalizer detect examples/ai-sample.md
 ```
 
 ## 사용
 
+아래는 전역 설치를 기준으로 한다. 개발 환경에서는 앞에 `uv run`을 붙인다.
+
 ```bash
-uv run korean-normalizer detect 문서.md
+korean-normalizer detect examples/ai-sample.md
 ```
 
 ```
 자연도 등급: C — S1 4건, S2 4건으로 AI 흔적이 뚜렷함
 감지 요약: S1 4건, S2 4건, S3 0건
 
-[S1] 패턴 31 이중 피동 '~되어진다' — 문서 전체, 3회 (임계 1) [자동교정]
-    지침: 단일 피동으로 되돌린다. 행위자가 분명하면 능동으로 바꾼다.
-    · 데이터는 신중하게 분석되어집니다. 결과는 통계적으
+[S1] 패턴 27 '~에 있어서' 격식 차용 — 문서 전체, 2회 (임계 1) [자동교정]
+    지침: ~에서, ~의 경우로 환원하거나 통째로 지운다.
+    · 되어집니다. 현대 사회에 있어서 데이터의 중요성은 매
+    · 성은 매우 크다. 이 점에 있어서 모든 기업이 동의한다
 ```
 
 JSON으로 받아 다른 도구에 넘길 수도 있다.
 
 ```bash
-uv run korean-normalizer detect 문서.md --format json
+korean-normalizer detect 문서.md --format json
+```
+
+표준 입력도 받는다.
+
+```bash
+cat 문서.md | korean-normalizer detect
 ```
 
 Tier A 자동 교정은 diff로 먼저 확인하고 반영한다.
 
 ```bash
-uv run korean-normalizer fix 문서.md --diff
-uv run korean-normalizer fix 문서.md --in-place
+korean-normalizer fix 문서.md --diff
+korean-normalizer fix 문서.md --in-place
 ```
 
 CI에서 문서를 검사하려면 종료 코드를 쓴다.
 
 ```bash
-uv run korean-normalizer detect 문서.md --fail-on-finding
+korean-normalizer detect 문서.md --fail-on-finding
 ```
 
-규칙 목록은 다음으로 확인한다.
+규칙 목록과 tier는 다음으로 확인한다.
 
 ```bash
-uv run korean-normalizer rules
+korean-normalizer rules
 ```
 
 ## 동작 원리
@@ -113,8 +148,10 @@ uv run korean-normalizer rules
 ## Claude Code 스킬로 쓰기
 
 ```bash
-ln -s ~/repo/tmn-korean-normalizer/skill ~/.claude/skills/korean-normalizer
+ln -s ~/teammono/tmn-korean-normalizer/skill ~/.claude/skills/korean-normalizer
 ```
+
+스킬은 전역 설치된 `korean-normalizer`를 호출한다. 설치가 먼저다.
 
 스킬은 CLI로 검출과 기계적 교정을 끝낸 뒤 남은 findings만 LLM이 처리하게 한다.
 
@@ -123,6 +160,7 @@ ln -s ~/repo/tmn-korean-normalizer/skill ~/.claude/skills/korean-normalizer
 ```bash
 uv run pytest -q --cov=korean_normalizer
 uv run ruff check src tests
+uv run ruff format --check src tests
 ```
 
 ## 근거와 출처
