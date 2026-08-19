@@ -329,3 +329,13 @@ def test_punctuation_rules_still_leave_tables_alone():
     """줄표 규칙이 칸 구분자를 넘으면 표가 깨진다."""
     text = "글이 길다 — 그래서 나눈다. " * 6 + "\n\n" + TABLE
     assert "13:00–13:40 (40분) — 비고" in fixed(text)
+
+
+def test_headings_go_even_when_they_hold_a_quote():
+    """인용 보호는 남의 말을 고치지 말라는 규칙이지 제목을 남기라는 뜻이 아니다."""
+    text = (
+        '## 1. 먼저, "AI 학습"은 한 덩어리다\n\n본문입니다. 여기 "인용문"은 남습니다.\n'
+    )
+    result = fixed(text)
+    assert "AI 학습" not in result
+    assert '"인용문"' in result

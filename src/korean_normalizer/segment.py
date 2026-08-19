@@ -61,10 +61,19 @@ def build_mask(text: str) -> MaskMap:
         for pattern in NON_TEXT
         for match in pattern.finditer(text)
     )
+    # 헤딩 줄 안의 인용은 보호하지 않는다. 남의 말을 고치지 말라는 규칙이지
+    # 인용부호가 붙은 제목을 남기라는 뜻이 아니다.
+    headings = tuple(Span(m.start(), m.end()) for m in HEADING.finditer(text))
     fix_free = tuple(
-        Span(match.start(), match.end()) for match in DIRECT_QUOTE.finditer(text)
+        Span(match.start(), match.end())
+        for match in DIRECT_QUOTE.finditer(text)
+        if not _inside(headings, match.start(), match.end())
     )
     return MaskMap(detect_free=detect_free, fix_free=fix_free)
+
+
+def _inside(spans: tuple[Span, ...], start: int, end: int) -> bool:
+    return any(span.start <= start and end <= span.end for span in spans)
 
 
 def scrub(text: str, mask: MaskMap) -> str:
