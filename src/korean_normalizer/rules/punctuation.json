@@ -11,17 +11,6 @@
     "guidance": "쉼표 없이 읽히는 자리의 쉼표를 지우고, 긴 문장은 마침표로 나눈다."
   },
   {
-    "id": 2,
-    "name": "영어식 쉼표 배치",
-    "severity": "S2",
-    "kind": "metric",
-    "metric": "comma_relative_position",
-    "bound": {
-      "gt": 0.15
-    },
-    "guidance": "문장 뒤쪽 쉼표를 앞으로 옮기거나 제거한다. 한국어는 SOV라 뒤쪽 쉼표가 어색하다."
-  },
-  {
     "id": 3,
     "name": "연결어미 뒤 쉼표",
     "severity": "S2",

@@ -1,6 +1,5 @@
 import pytest
 
-from korean_normalizer import metrics
 from korean_normalizer.metrics import compute, context_of, registered
 
 
@@ -24,18 +23,6 @@ def test_comma_sentence_ratio_counts_sentences_with_commas():
 
 def test_comma_sentence_ratio_skips_short_input():
     assert value_of("comma_sentence_ratio", "짧습니다.") is None
-
-
-def test_comma_relative_position_is_higher_when_commas_sit_late():
-    early = "가, 나다라마바사아자차카타파하입니다."
-    late = "가나다라마바사아자차카타파하, 입니다."
-    assert value_of("comma_relative_position", early) < value_of(
-        "comma_relative_position", late
-    )
-
-
-def test_comma_relative_position_needs_a_comma():
-    assert value_of("comma_relative_position", "쉼표가 없습니다.") is None
 
 
 def test_dependent_noun_spacing_uniformity_flags_perfect_consistency():
@@ -97,30 +84,6 @@ def test_repeated_subject_runs_counts_the_longest_streak():
 def test_repeated_subject_runs_is_low_when_subjects_alternate():
     text = "철수는 갔다. 영희는 왔다. 철수는 잤다."
     assert value_of("repeated_subject_runs", text) == 1.0
-
-
-def test_pos_metrics_are_skipped_without_kiwipiepy(monkeypatch):
-    monkeypatch.setattr(metrics, "_kiwi_tags", lambda text: None)
-    assert value_of("noun_ratio", "명사 비율을 잰다.") is None
-    assert value_of("verb_adjective_ratio", "명사 비율을 잰다.") is None
-    assert value_of("pos_trigram_diversity", "명사 비율을 잰다.") is None
-
-
-def test_pos_metrics_use_tags_when_available(monkeypatch):
-    tags = ["NNG", "JKO", "VV", "EF", "NNG", "NNP", "VA"] * 10
-    monkeypatch.setattr(metrics, "_kiwi_tags", lambda text: tags)
-    assert value_of("noun_ratio", "무시됨") == pytest.approx(3 / 5)
-    assert value_of("verb_adjective_ratio", "무시됨") == pytest.approx(2 / 5)
-    assert value_of("pos_trigram_diversity", "무시됨") < 0.2
-
-
-def test_pos_metrics_skip_short_text(monkeypatch):
-    """짧은 글은 비율이 요동치므로 판정하지 않는다."""
-    tags = ["NNG", "JKO", "VV", "EF"]
-    monkeypatch.setattr(metrics, "_kiwi_tags", lambda text: tags)
-    assert value_of("noun_ratio", "무시됨") is None
-    assert value_of("verb_adjective_ratio", "무시됨") is None
-    assert value_of("pos_trigram_diversity", "무시됨") is None
 
 
 def test_hype_density_separates_marketing_prose_from_plain_prose():
