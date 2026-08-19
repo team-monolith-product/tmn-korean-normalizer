@@ -121,3 +121,14 @@ def test_pos_metrics_skip_short_text(monkeypatch):
     assert value_of("noun_ratio", "무시됨") is None
     assert value_of("verb_adjective_ratio", "무시됨") is None
     assert value_of("pos_trigram_diversity", "무시됨") is None
+
+
+def test_hype_density_separates_marketing_prose_from_plain_prose():
+    hyped = "압도적인 성장과 독보적인 기술로 매출이 폭증하며 효율을 극대화한다. " * 12
+    plain = "어제 비가 와서 우산을 챙겼다. 길이 막혀 지하철로 갈아탔다. " * 12
+    assert value_of("hype_density", hyped) > 1.5
+    assert value_of("hype_density", plain) == 0.0
+
+
+def test_hype_density_skips_short_text():
+    assert value_of("hype_density", "압도적인 성장이다.") is None

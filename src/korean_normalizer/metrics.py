@@ -28,6 +28,12 @@ CONJUNCTION_OPENING = re.compile(
     r"^(?:그러나|그리고|또한|따라서|게다가|하지만|그러므로|즉|또는|그래서|더불어)"
 )
 SUBJECT_OPENING = re.compile(r"^([가-힣]{1,10}[은는])\s")
+HYPE_WORD = re.compile(
+    r"혁신적|획기적|압도적|치명적|전례\s*없는|강력한|파격적|엄청난|놀라운"
+    r"|독보적|극대화|극단적|폭증|급상승|급증|대폭|비약적|기하급수적"
+    r"|가장\s*[가-힣]{2,4}적|최상위|초격차|무궁무진"
+)
+MIN_WORDS_FOR_DENSITY = 60
 
 FORMAL = re.compile(r"(?:습니다|ㅂ니다|입니다)[.!?]?$")
 POLITE = re.compile(r"(?:어요|아요|에요|예요|해요|죠|요)[.!?]?$")
@@ -178,6 +184,19 @@ def _kiwi():
     except ImportError:
         return None
     return Kiwi()
+
+
+@metric("hype_density")
+def _hype_density(context: MetricContext) -> float | None:
+    """어절 100개당 과장 어휘 수.
+
+    패턴 38은 한 문단에 몰린 군집을 본다. 과장 어휘는 문서 전체에 하나씩
+    흩뿌려지는 쪽이 더 흔해 밀도로 따로 센다.
+    """
+    words = context.text.split()
+    if len(words) < MIN_WORDS_FOR_DENSITY:
+        return None
+    return len(HYPE_WORD.findall(context.text)) / len(words) * 100
 
 
 def _kiwi_tags(text: str) -> list[str] | None:

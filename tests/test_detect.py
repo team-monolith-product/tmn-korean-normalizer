@@ -112,3 +112,21 @@ def test_team_rule_catches_absolute_praise():
 def test_team_rules_leave_plain_korean_alone():
     text = "어제 비가 왔다. 우산을 챙겼다.\n\n길이 막혀 지하철로 갈아탔다."
     assert ids_of(text) & {101, 102, 103, 104} == set()
+
+
+def test_team_rule_catches_hype_spread_across_the_document():
+    """패턴 38은 한 문단 군집만 본다. 문서 전체에 흩뿌려진 과장은 105가 잡는다."""
+    text = "\n\n".join(
+        [
+            "이 회사는 독보적인 모델을 갖췄다. 지난 분기에 시장에서 자리를 잡았다.",
+            "매출이 폭증했다. 지난해 실적을 크게 넘어서는 숫자를 기록했다.",
+            "효율을 극대화했다. 운영 비용을 줄이려고 조직을 다시 짰다.",
+            "주가가 급상승했다. 투자자들이 이 종목으로 몰려들기 시작했다.",
+            "점유율을 대폭 늘렸다. 같은 기간에 경쟁사를 앞질렀다고 밝혔다.",
+            "압도적인 성과를 냈다. 업계 전반이 이 흐름을 주목하고 있다.",
+            "다음 분기 계획을 세웠다. 공장 두 곳을 새로 짓기로 결정했다.",
+            "채용도 늘린다. 연구 인력을 중심으로 백 명을 더 뽑을 예정이다.",
+        ]
+    )
+    assert 105 in ids_of(text)
+    assert 38 not in ids_of(text)
