@@ -187,8 +187,9 @@ def test_tier_matches_the_documented_taxonomy():
     for rule in load_rules():
         by_tier.setdefault(rule.tier, set()).add(rule.id)
     assert by_tier["A"] == TIER_A
-    assert by_tier["C"] == {11, 12, 13}
-    assert by_tier["B"] == (BORROWED_IDS | TEAM_IDS) - TIER_A - {11, 12, 13}
+    analyzer_rules = {2, 118, 119}
+    assert by_tier["C"] == analyzer_rules
+    assert by_tier["B"] == (BORROWED_IDS | TEAM_IDS) - TIER_A - analyzer_rules
 
 
 def test_every_regex_rule_counts_across_the_document():
