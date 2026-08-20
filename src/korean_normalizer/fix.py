@@ -7,15 +7,19 @@
 from __future__ import annotations
 
 import difflib
+import re
 from collections import Counter
 from dataclasses import asdict, dataclass
 
 from .detect import analyze_document
 from .josa import agree
 from .rules import AutoFix, Rule, load_rules
-from .segment import Document, overlaps, protected_spans
+from .segment import VERBATIM_OPENER, Document, overlaps, protected_spans
 
 MAX_PASSES = 3
+FRAGMENT_LIMIT = 40
+TERMINAL = re.compile(r"[.!?…:]\s*$")
+STRUCTURAL_BLOCK = ("|", ">", "#")
 
 
 @dataclass(frozen=True)
@@ -48,7 +52,7 @@ def _expand(entry: AutoFix, match) -> str:
     return head + agree(head, match.group(entry.josa_group) or "")
 
 
-def _substitute(text: str, entry: AutoFix) -> tuple[str, int]:
+def _substitute(text: str, entry: AutoFix, *, layout: bool) -> tuple[str, int]:
     """보호 구간과 겹치는 매치를 건너뛰며 한 번 치환한다.
 
     보호 구간을 기준으로 텍스트를 미리 조각내면 안 된다. 조각 경계를
@@ -56,7 +60,7 @@ def _substitute(text: str, entry: AutoFix) -> tuple[str, int]:
     sub는 입력 문자열 기준 오프셋을 주므로 같은 문자열에서 뜬 구간과
     좌표계가 맞는다. 패스가 끝나면 구간을 다시 뜬다.
     """
-    protected = protected_spans(text)
+    protected = protected_spans(text, layout=layout)
     replaced = 0
 
     def render(match) -> str:
@@ -77,11 +81,77 @@ def _run(text: str, rules: list[Rule]) -> tuple[str, Counter[int]]:
         before = current
         for rule in rules:
             for entry in rule.autofix:
-                current, replaced = _substitute(current, entry)
+                current, replaced = _substitute(
+                    current, entry, layout=not rule.sees_layout
+                )
                 counts[rule.id] += replaced
         if current == before:
             break
     return current, Counter({rule_id: n for rule_id, n in counts.items() if n})
+
+
+def _is_fragment(block: str) -> bool:
+    """한 줄짜리 조각인지. 마크다운 표시를 뗀 헤딩이 이렇게 남는다."""
+    return (
+        "\n" not in block
+        and len(block) <= FRAGMENT_LIMIT
+        and not TERMINAL.search(block)
+        and not block.startswith(STRUCTURAL_BLOCK)
+    )
+
+
+def _flatten(block: str) -> tuple[str, int]:
+    """한 문단 안의 여러 줄을 한 줄로 잇는다.
+
+    목록 기호를 떼면 항목이 줄마다 하나씩 남는다. 문장 끝 부호가 없으면
+    마침표를 찍고 이어 붙여 문단으로 만든다. 코드 블록과 수식은 줄바꿈이
+    문법이라 손대지 않는다.
+    """
+    if VERBATIM_OPENER.search(block):
+        return block, 0
+    rows = [line.strip() for line in block.split("\n") if line.strip()]
+    if len(rows) < 2:
+        return block, 0
+    parts = []
+    for index, row in enumerate(rows):
+        last = index == len(rows) - 1
+        parts.append(row if last or TERMINAL.search(row) else row + ".")
+    return " ".join(parts), len(rows) - 1
+
+
+def merge_fragments(text: str) -> tuple[str, int]:
+    """마크다운 표시를 뗀 뒤 남는 조각을 문단으로 되돌린다.
+
+    헤딩 기호를 떼면 '콘웨이 법칙과의 충돌' 같은 한 줄 조각이 문단 사이에
+    남고, 목록 기호를 떼면 항목이 줄마다 하나씩 남는다. 둘 다 문장으로
+    읽히지 않으므로 앞뒤를 합치고 마침표를 찍는다.
+    표는 칸 구조가 있어 손대지 않는다.
+    """
+    blocks = [b.strip() for b in re.split(r"\n\s*\n", text)]
+    merged: list[str] = []
+    pending: list[str] = []
+    joined = 0
+    for block in blocks:
+        if not block:
+            continue
+        if _is_fragment(block):
+            pending.append(block)
+            continue
+        if not block.startswith(STRUCTURAL_BLOCK):
+            block, flattened = _flatten(block)
+            joined += flattened
+        head = ". ".join(pending)
+        if pending and not block.startswith(STRUCTURAL_BLOCK):
+            merged.append(f"{head}. {block}")
+            joined += len(pending)
+        elif pending:
+            merged.extend([f"{head}.", block])
+        else:
+            merged.append(block)
+        pending = []
+    if pending:
+        merged.append(". ".join(pending) + ".")
+    return "\n\n".join(merged) + ("\n" if text.endswith("\n") else ""), joined
 
 
 def _autofix_targets(document: Document, rules: tuple[Rule, ...]):
@@ -128,12 +198,23 @@ def apply(text: str, rules: tuple[Rule, ...] | None = None) -> FixResult:
         counts += chunk_counts
         cursor = paragraph.end
     pieces.append(text[cursor:])
+    fixed_text = "".join(pieces)
+
+    merging = [
+        rule_id
+        for rule_id in document_rules
+        if getattr(by_id[rule_id], "merge_fragments", False)
+    ]
+    if merging:
+        fixed_text, joined = merge_fragments(fixed_text)
+        if joined:
+            counts[merging[0]] += joined
 
     changes = tuple(
         Change(rule_id=rule_id, name=by_id[rule_id].name, replacements=count)
         for rule_id, count in sorted(counts.items())
     )
-    return FixResult(text="".join(pieces), changes=changes)
+    return FixResult(text=fixed_text, changes=changes)
 
 
 def diff(before: str, after: str, label: str = "text") -> str:

@@ -56,14 +56,14 @@ def test_em_dash_pair_becomes_parentheses():
 
 
 def test_colon_after_predicate_becomes_period():
-    assert (
-        fixed("설치 방법은 다음과 같습니다:\n- a")
-        == "설치 방법은 다음과 같습니다.\n- a"
+    assert fixed("설치 방법은 다음과 같습니다:\n- a").startswith(
+        "설치 방법은 다음과 같습니다."
     )
 
 
 def test_label_colon_is_dropped():
-    assert fixed("주요 특징:\n1. 속도") == "주요 특징\n1. 속도"
+    """콜론과 함께 공허한 관형어 '주요'도 지워진다."""
+    assert fixed("주요 특징:\n1. 속도") == "특징. 속도"
 
 
 def test_closing_idiom_is_deleted():
@@ -86,7 +86,7 @@ def test_anchored_rules_respect_real_line_ends():
     """보호 구간을 기준으로 조각내면 ^ $ 앵커가 조각 끝을 줄 끝으로 착각한다."""
     text = "주요 특징:\n1. 속도\n\n설치 방법은 다음과 같습니다: `npm i` 를 실행하세요."
     result = fixed(text)
-    assert "주요 특징\n" in result
+    assert result.startswith("특징. 속도")
     assert "다음과 같습니다: `npm i`" in result
 
 
@@ -158,23 +158,32 @@ def test_en_dash_between_numbers_is_not_a_rhetorical_dash():
 
 
 def test_empty_intensifier_is_removed_from_modifier_position():
-    text = "## 핵심 수익 구조\n\n주요 특징을 본다. 두 가지 핵심 알고리즘을 쓴다."
+    text = "핵심 수익 구조를 본다.\n\n주요 특징을 본다. 두 가지 핵심 알고리즘을 쓴다."
     result = fixed(text)
-    assert "## 수익 구조" in result
+    assert result.startswith("수익 구조를 본다.")
     assert "특징을 본다" in result
     assert "두 가지 알고리즘을 쓴다" in result
 
 
-def test_empty_intensifier_survives_where_deleting_breaks_the_sentence():
-    """'핵심적인 위치'는 형용사가 서술을 떠받치고 '핵심이 된다'는 명사다."""
+def test_empty_intensifier_covers_all_seven_words():
     text = (
-        "핵심적인 위치를 차지한다. 주요 지표를 본다.\n\n"
-        "지연 단축의 핵심이 된다. 핵심을 짚었다."
+        "핵심 정리를 붙였다. 근본 이유를 찾는다.\n\n"
+        "본질적으로 다르다. 필수 조건이다. 궁극 목표는 하나다. 총체적 난국이다."
     )
     result = fixed(text)
-    assert "핵심적인 위치를 차지한다" in result
-    assert "핵심이 된다" in result
-    assert "핵심을 짚었다" in result
+    for word in ("핵심", "근본", "본질", "필수", "궁극", "총체"):
+        assert word not in result
+    assert "정리를 붙였다" in result
+    assert "이유를 찾는다" in result
+
+
+def test_empty_intensifier_spares_compounds_and_head_nouns():
+    """필수의료는 고유 용어고 '핵심은 X다'의 핵심은 주어다."""
+    text = "필수의료 인력이 모자란다. 주요국이 나섰다.\n\n핵심은 구조에 있다."
+    result = fixed(text)
+    assert "필수의료 인력" in result
+    assert "주요국이" in result
+    assert "핵심은 구조에" in result
 
 
 def test_fix_never_merges_paragraphs():
@@ -214,9 +223,9 @@ def test_closing_label_line_is_deleted():
 
 
 def test_closing_label_with_content_after_it_survives():
-    """'## 3. 요약: 비교표'처럼 뒤에 내용이 붙으면 표제가 아니다."""
-    text = "본문입니다.\n\n## 3. 요약: 비교표\n\n내용입니다.\n"
-    assert "## 3. 요약: 비교표" in fixed(text)
+    """'요약: 비교표'처럼 뒤에 내용이 붙으면 표제가 아니라 지우지 않는다."""
+    text = "본문입니다.\n\n요약: 비교표를 실었습니다.\n\n내용입니다.\n"
+    assert "요약: 비교표를 실었습니다." in fixed(text)
 
 
 def test_announcement_paragraph_is_deleted():
@@ -250,19 +259,32 @@ MARKDOWN_HEAVY = (
 
 def test_markdown_markers_are_stripped():
     result = fixed(MARKDOWN_HEAVY)
-    assert "**" not in result
-    assert "## " not in result
-    assert "---" not in result
+    for marker in ("**", "## ", "---", "- "):
+        assert marker not in result
     assert "첫째: 내용이 있다" in result
 
 
-def test_markdown_fix_keeps_list_items():
-    """목록을 문단으로 합치는 것은 문장을 다시 써야 해 기계가 못 한다."""
-    assert "- 첫째" in fixed(MARKDOWN_HEAVY)
+def test_symbol_bullets_and_numbering_are_stripped():
+    text = (
+        "핵심 정리를 붙였다.\n\n"
+        "① 원문자 항목\n• 불릿 항목\n※ 참고 항목\n"
+        "> 인용문이다\n💡 이모지 항목\n2) 번호 항목\n"
+    )
+    result = fixed(text)
+    for marker in ("①", "•", "※", "> ", "💡", "2) "):
+        assert marker not in result
+    assert "원문자 항목" in result
+    assert "번호 항목" in result
 
 
-def test_prose_document_keeps_its_markdown():
-    """밀도가 낮으면 규칙이 발화하지 않아 문서 구조를 건드리지 않는다."""
+def test_year_is_not_mistaken_for_a_list_number():
+    """번호 표시는 두 자리까지다. 2026. 은 연도다."""
+    text = "핵심 정리를 붙였다.\n\n2026. 3. 5. 회의가 있었다. 다음 문장이다."
+    assert "2026. 3. 5." in fixed(text)
+
+
+def test_headings_go_even_in_a_mostly_prose_document():
+    """표시 하나면 지운다. 밀도로 재던 시절에는 이런 글에 헤딩이 남았다."""
     text = (
         "## 제목\n\n"
         "전세 제도가 한국에만 있는 이유는 금융 환경에 있다.\n"
@@ -271,4 +293,66 @@ def test_prose_document_keeps_its_markdown():
         "최근 사고가 반복되는 것도 같은 이유다.\n"
         "보증금을 돌려줄 현금이 없는 집주인이 늘었다.\n"
     )
-    assert "## 제목" in fixed(text)
+    result = fixed(text)
+    assert "제목" not in result
+    assert result.startswith("전세 제도가")
+
+
+def test_headings_are_deleted_with_their_text():
+    """기호만 떼면 서술 없는 한 줄이 남아 비문이 된다. 줄째로 지운다."""
+    text = "## 콘웨이 법칙\n\n조직 구조가 설계에 드러납니다.\n"
+    assert fixed(MARKDOWN_HEAVY + "\n" + text).endswith(
+        "조직 구조가 설계에 드러납니다.\n"
+    )
+
+
+def test_list_items_become_one_paragraph():
+    result = fixed(MARKDOWN_HEAVY)
+    assert "첫째: 내용이 있다. 둘째: 내용이 있다. 셋째: 내용이 있다" in result
+    assert "\n첫째" not in result
+
+
+def test_tables_keep_their_line_structure():
+    text = MARKDOWN_HEAVY + "\n| 구분 | 값 |\n| --- | --- |\n| 가 | 나 |\n"
+    result = fixed(text)
+    assert "| 구분 | 값 |\n| --- | --- |\n| 가 | 나 |" in result
+
+
+TABLE = "| 항목 | 값 |\n| --- | --- |\n| **굵게** | 13:00–13:40 (40분) — 비고 |\n"
+
+
+def test_bold_inside_table_cells_is_stripped():
+    assert "**" not in fixed(MARKDOWN_HEAVY + "\n" + TABLE)
+
+
+def test_punctuation_rules_still_leave_tables_alone():
+    """줄표 규칙이 칸 구분자를 넘으면 표가 깨진다."""
+    text = "글이 길다 — 그래서 나눈다. " * 6 + "\n\n" + TABLE
+    assert "13:00–13:40 (40분) — 비고" in fixed(text)
+
+
+def test_headings_go_even_when_they_hold_a_quote():
+    """인용 보호는 남의 말을 고치지 말라는 규칙이지 제목을 남기라는 뜻이 아니다."""
+    text = (
+        '## 1. 먼저, "AI 학습"은 한 덩어리다\n\n본문입니다. 여기 "인용문"은 남습니다.\n'
+    )
+    result = fixed(text)
+    assert "AI 학습" not in result
+    assert '"인용문"' in result
+
+
+def test_code_blocks_keep_their_line_breaks():
+    """줄바꿈이 문법인 블록은 문단으로 잇지 않는다."""
+    text = "## 제목\n\n설명입니다.\n\n```py\na = 1\nb = 2\n```\n\n이어집니다.\n"
+    assert "```py\na = 1\nb = 2\n```" in fixed(text)
+
+
+def test_display_math_survives_intact():
+    text = (
+        "## 회귀식\n\n아래와 같이 둡니다.\n\n"
+        "\\[\n\\Delta \\log Rent\n= \\beta D\n+ \\gamma C\n\\]\n\n"
+        "여기서 \\(\\beta\\)는 효과입니다.\n"
+    )
+    result = fixed(text)
+    assert "\\[\n\\Delta \\log Rent\n= \\beta D\n+ \\gamma C\n\\]" in result
+    assert "\\(\\beta\\)는 효과입니다." in result

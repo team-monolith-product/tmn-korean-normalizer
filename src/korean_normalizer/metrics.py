@@ -34,14 +34,13 @@ HYPE_WORD = re.compile(
 )
 MIN_WORDS_FOR_DENSITY = 60
 MIN_PROSE_SENTENCES = 5
-MIN_LINES_FOR_MARKDOWN = 5
 SHORT_SENTENCE = 25
 
 # 목록 항목·가로줄·인용 부호는 산문 문장이 아니다. 원래 짧은 단위라
 # 문장 길이 통계에 넣으면 글이 잘게 끊긴 것처럼 보인다.
-NON_PROSE_LINE = re.compile(r"^[ \t]*(?:[-*+•]\s|\d+[.)]\s|[-=_]{3,}[ \t]*$|>)")
-STRUCTURE_LINE = re.compile(r"^[ \t]*(?:[-*+•]\s|\d+[.)]\s|#{1,6}\s|[-=_*]{3,}[ \t]*$)")
-BOLD_RUN = re.compile(r"\*\*[^*\n]+\*\*")
+# 목록 표시로 쓰이는 기호. 하이픈·별표뿐 아니라 원문자와 불릿 기호도 센다.
+_MARKER = r"[-*+•▶▸‣▪◆★☆※❏□■✓✔·]\s|\d+[.)]\s|[①-⑳㉑-㉟]\s*"
+NON_PROSE_LINE = re.compile(rf"^[ \t]*(?:{_MARKER}|[-=_]{{3,}}[ \t]*$|>)")
 MARKUP = re.compile(r"[*_`#>|]")
 INTENSIFIER = re.compile(
     r"완전히|매우|정말로?|아주|굉장히|너무나?|훨씬|확실히|반드시|무조건"
@@ -297,20 +296,6 @@ def _short_sentence_ratio(context: MetricContext) -> float | None:
     if len(lengths) < MIN_PROSE_SENTENCES:
         return None
     return sum(1 for n in lengths if n < SHORT_SENTENCE) / len(lengths)
-
-
-@metric("markdown_density")
-def _markdown_density(context: MetricContext) -> float | None:
-    """줄당 마크다운 구조 표시 수.
-
-    목록·헤딩·가로줄 한 줄을 1로, 굵은 글씨 한 덩이를 1로 센다. 산문으로
-    쓸 내용을 항목과 강조로 쪼갠 글에서 값이 높다.
-    """
-    lines = [line for line in context.text.split("\n") if line.strip()]
-    if len(lines) < MIN_LINES_FOR_MARKDOWN:
-        return None
-    marked = sum(1 for line in lines if STRUCTURE_LINE.match(line))
-    return (marked + len(BOLD_RUN.findall(context.text))) / len(lines)
 
 
 @metric("intensifier_density")

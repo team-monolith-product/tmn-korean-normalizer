@@ -87,7 +87,8 @@ def test_table_rows_are_not_prose():
 
 
 def test_headings_are_not_prose():
-    assert ids_of("## 트랙 A — 자기 학교 학생·단원 맥락 반영\n") == set()
+    """헤딩은 마크다운 표시로만 걸리고 문장부호 규칙에는 걸리지 않는다."""
+    assert ids_of("## 트랙 A — 자기 학교 학생·단원 맥락 반영\n") == {117}
 
 
 def test_em_dash_in_prose_is_still_caught():
@@ -220,3 +221,17 @@ def test_paragraph_scope_still_works_for_rules_that_want_it():
     assert finding.count == 2
     assert finding.location is not None
     assert finding.location.index == 0
+
+
+def test_empty_intensifier_needs_the_modifier_position():
+    """필수의료·주요국은 붙여 쓰는 합성어다. 관형어가 아니다."""
+    assert 108 not in ids_of("필수의료 인력이 모자란다. 주요국이 대응에 나섰다.")
+    assert 108 not in ids_of("핵심은 구조에 있다. 본질은 다르다.")
+    assert 108 in ids_of("핵심 정리를 붙였다.")
+    assert 108 in ids_of("핵심적인 위치를 차지한다.")
+
+
+def test_math_is_not_prose():
+    """수식의 괄호는 부연이 아니다."""
+    text = "임대료를 \\(R=F(D,Z)\\)로 둡니다. 탄력성은 \\(\\beta\\)입니다.\n"
+    assert 106 not in ids_of(text * 3)

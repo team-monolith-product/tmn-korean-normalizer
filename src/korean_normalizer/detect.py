@@ -10,7 +10,6 @@ from .segment import Document
 
 MAX_SAMPLES = 5
 SNIPPET_PAD = 12
-LEXICAL_CATEGORIES = frozenset({"vocabulary", "translation", "extra"})
 
 
 @dataclass(frozen=True)
@@ -79,7 +78,7 @@ def _matches_in(rule: RegexRule, haystack: str, offset: int) -> list[tuple[int, 
 
 def _haystack(rule: RegexRule, document: Document) -> str:
     """어휘 규칙만 헤딩을 본다. 문장부호·구조 규칙에서 헤딩은 관습이 다르다."""
-    return document.scrubbed if rule.category in LEXICAL_CATEGORIES else document.prose
+    return document.scrubbed if rule.sees_layout else document.prose
 
 
 def _regex_findings(rule: RegexRule, document: Document) -> list[Finding]:
@@ -158,8 +157,6 @@ def analyze_document(
     """이미 분절된 문서를 분석한다. 교정 쪽에서 문서를 두 번 만들지 않도록 나눴다."""
     rules = rules if rules is not None else load_rules()
     context = metrics.context_of(document.prose)
-    # 마크다운 구조 지표만 헤딩이 살아 있는 본문을 본다. 헤딩도 세야 하기 때문이다.
-    structure = metrics.context_of(document.scrubbed)
 
     findings: list[Finding] = []
     skipped: list[str] = []
@@ -167,8 +164,7 @@ def analyze_document(
         if isinstance(rule, RegexRule):
             findings.extend(_regex_findings(rule, document))
             continue
-        source = structure if rule.metric == "markdown_density" else context
-        value = metrics.compute(rule.metric, source)
+        value = metrics.compute(rule.metric, context)
         if value is None:
             skipped.append(f"{rule.id}:{rule.metric}")
         elif rule.bound.breached_by(value):

@@ -94,9 +94,10 @@ def test_headings_stay_visible_to_lexical_rules_but_leave_prose():
     assert "본문입니다." in document.prose
 
 
-def test_tables_are_hidden_from_both_layers():
+def test_tables_follow_the_heading_layer():
+    """표 칸도 어휘 규칙에는 보이고 통계 지표에는 숨는다."""
     document = Document.of("| 시간 | 내용 |\n\n본문입니다.\n")
-    assert "시간" not in document.scrubbed
+    assert "시간" in document.scrubbed
     assert "시간" not in document.prose
 
 
