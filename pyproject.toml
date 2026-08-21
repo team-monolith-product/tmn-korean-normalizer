@@ -2,7 +2,6 @@
 name = "korean-normalizer"
 version = "0.1.0"
 description = "한국어 AI 작문 패턴의 규칙 기반 검출·교정"
-readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
 dependencies = []
