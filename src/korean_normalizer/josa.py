@@ -42,4 +42,6 @@ def agree(stem: str, josa: str) -> str:
     batchim = has_batchim(stem)
     if batchim is None:
         return josa
+    if josa in {"으로", "로"} and (ord(stem[-1]) - HANGUL_BASE) % JONGSEONG_COUNT == 8:
+        return "로"
     return _AFTER_BATCHIM[josa] if batchim else _AFTER_VOWEL[josa]

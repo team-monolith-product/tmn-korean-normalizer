@@ -6,7 +6,7 @@ from korean_normalizer.rules import MetricRule, RuleError, build_rule, load_rule
 
 TIER_A = {3, 6, 7, 15, 17, 19, 27, 31, 37, 108, 112, 113, 114, 117}
 # 11·12·13은 논문에 없거나 길이를 재고 있어 뺐다. tools/pos_ngram_check.py 참조.
-BORROWED_IDS = set(range(1, 41)) - {11, 12, 13, 38}
+BORROWED_IDS = set(range(1, 42)) - {11, 12, 13, 38}
 TEAM_IDS = {
     101,
     102,

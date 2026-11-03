@@ -8,8 +8,8 @@ from dataclasses import dataclass
 
 PLACEHOLDER = "\x00"
 
-FENCED_CODE = re.compile(r"^```.*?^```", re.MULTILINE | re.DOTALL)
-INLINE_CODE = re.compile(r"`[^`\n]+`")
+FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+INLINE_CODE = re.compile(r"(?<!`)(`+)(?!`)[\s\S]*?(?<!`)\1(?!`)")
 MATH_BLOCK = re.compile(r"\\\[.*?\\\]|\$\$.*?\$\$", re.DOTALL)
 MATH_INLINE = re.compile(r"\\\([^\n]*?\\\)")
 URL = re.compile(r"https?://\S+")
@@ -53,7 +53,6 @@ class MaskMap:
 
 
 NON_TEXT = (
-    FENCED_CODE,
     INLINE_CODE,
     MATH_BLOCK,
     MATH_INLINE,
@@ -62,16 +61,47 @@ NON_TEXT = (
 )
 
 # 여러 줄에 걸친 축자 구간의 여는·닫는 줄. 이 줄이 든 문단은 흐름을 바꾸면 깨진다.
-VERBATIM_OPENER = re.compile(r"^[ \t]*(?:```|\\\[|\\\]|\$\$)", re.MULTILINE)
+VERBATIM_OPENER = re.compile(r"^[ \t]*(?:```|~~~|\\\[|\\\]|\$\$)", re.MULTILINE)
 LAYOUT = (HEADING, TABLE_ROW)
+
+
+def _code_block_spans(text: str) -> tuple[Span, ...]:
+    spans = []
+    start = None
+    marker = ""
+    length = 0
+    offset = 0
+    for line in text.splitlines(keepends=True):
+        match = FENCE.match(line.rstrip("\r\n"))
+        end = offset + len(line)
+        if start is not None:
+            if (
+                match
+                and match[1][0] == marker
+                and len(match[1]) >= length
+                and not match[2].strip()
+            ):
+                spans.append(Span(start, end))
+                start = None
+        elif match:
+            start = offset
+            marker, length = match[1][0], len(match[1])
+        elif line.startswith(("    ", "\t")):
+            spans.append(Span(offset, end))
+        offset = end
+    if start is not None:
+        spans.append(Span(start, len(text)))
+    return tuple(spans)
 
 
 def build_mask(text: str) -> MaskMap:
     """코드와 URL은 애초에 산문이 아니라 어디서도 보지 않는다."""
-    detect_free = tuple(
+    blocks = _code_block_spans(text)
+    code_free = scrub(text, MaskMap(detect_free=blocks, fix_free=()))
+    detect_free = blocks + tuple(
         Span(match.start(), match.end())
         for pattern in NON_TEXT
-        for match in pattern.finditer(text)
+        for match in pattern.finditer(code_free)
     )
     # 헤딩 줄 안의 인용은 보호하지 않는다. 남의 말을 고치지 말라는 규칙이지
     # 인용부호가 붙은 제목을 남기라는 뜻이 아니다.
@@ -96,7 +126,7 @@ def scrub(text: str, mask: MaskMap) -> str:
     chars = list(text)
     for span in mask.detect_free:
         for index in range(span.start, min(span.end, len(chars))):
-            if chars[index] != "\n":
+            if chars[index] not in "\r\n":
                 chars[index] = PLACEHOLDER
     return "".join(chars)
 

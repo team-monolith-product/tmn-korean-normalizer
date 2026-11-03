@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 
 from . import metrics
+from .grammar import GrammarReport
+from .grammar import analyze_document as check_grammar
 from .rules import MetricRule, RegexRule, Rule, load_rules
 from .segment import Document
 
@@ -49,6 +51,7 @@ class Report:
     grade_reason: str
     counts: dict[str, int]
     findings: tuple[Finding, ...]
+    grammar: GrammarReport
     skipped_metrics: tuple[str, ...] = ()
 
     def to_dict(self) -> dict:
@@ -58,6 +61,7 @@ class Report:
             "counts": self.counts,
             "skipped_metrics": list(self.skipped_metrics),
             "findings": [asdict(finding) for finding in self.findings],
+            "grammar": self.grammar.to_dict(),
         }
 
 
@@ -181,5 +185,6 @@ def analyze_document(
         grade_reason=reason,
         counts=counts,
         findings=tuple(findings),
+        grammar=check_grammar(document),
         skipped_metrics=tuple(skipped),
     )

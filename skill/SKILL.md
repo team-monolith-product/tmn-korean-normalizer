@@ -1,6 +1,6 @@
 ---
 name: korean-normalizer
-description: 한국어 텍스트에서 AI 작문 패턴 53가지를 규칙 엔진으로 검출하고 윤문한다. 쉼표 과다, 번역투(에 대해/통해/되어진다/에 있어서), AI 유행어, 결말 관용구, 복수형 과다, 품사 편중 등을 정규식과 통계 지표로 판정하고 자연도 등급 A~D를 매긴다. ChatGPT/Claude/Gemini가 쓴 한국어를 자연스럽게 다듬을 때 사용한다.
+description: 한국어 텍스트에서 AI 작문 패턴과 편집 규칙 54가지를 검출하고 윤문한다. 가운뎃점 나열, 쉼표 과다, 번역투, AI 유행어 등을 정규식과 통계 지표로 판정하고 자연도 등급 A~D를 매긴다. 형태소 분석으로 조사 선택과 일부 호응 오류 후보도 검사한다. ChatGPT/Claude/Gemini가 쓴 한국어를 자연스럽게 다듬을 때 사용한다.
 license: MIT
 allowed-tools: Bash Read Write Edit
 ---
@@ -15,8 +15,32 @@ allowed-tools: Bash Read Write Edit
 korean-normalizer detect <파일> --format json
 ```
 
-출력은 `grade`, `counts`, `findings` 세 부분이다. `findings[].guidance`가 각 패턴의
-교정 지침이고, `findings[].samples[]`가 원문 위치와 스니펫이다. 이 목록이 작업 목록이다.
+`grade`, `counts`, `findings`는 문체 검사 결과다. `findings[].guidance`가 각 패턴의
+교정 지침이고, `findings[].samples[]`가 원문 위치와 스니펫이다.
+
+패턴 41은 같은 나열에 가운뎃점이나 유사 구분점이 두 번 이상 이어지면 검출한다.
+`수집·정리·검토`와 `A · B · C`가 해당하며, 제목과 표에서도 검사한다.
+서로 떨어진 `교원·학생 대상 교육과 학교·교육청 대상 운영`은 합산하지 않는다.
+사용자 지정 편집 기준이므로 이 표현만으로 AI 작성 여부를 단정하지 않는다.
+항목 사이의 관계를 동사로 풀어 쓰거나 표의 행과 열로 정리한다.
+
+`grammar`는 비문 검사 결과이며 문체 등급과 집계가 분리된다.
+
+- G001: 한글 체언과 결합한 어절 끝 조사의 받침 조건. `ㄹ + 로` 예외를 포함한다.
+- G002: `밖에`에 호응하는 부정 표현 후보를 연결어미 범위에서 확인한다.
+- G003: `목표/꿈/소망 + 은/는 + … 되고 싶다` 구문의 호응 후보를 확인한다.
+
+`grammar.status`가 `checked`이면 `counts`와 `findings`를 검토한다.
+`error`는 원문의 조사 분석을 확인하고 교정하며, `review`는 문맥으로 오류가 확인된
+경우에만 교정한다. 직접 인용은 보존한다. 위치는 0부터 시작하는 유니코드 문자
+인덱스이며 `end`는 포함하지 않는다. `line`과 `column`은 1부터 시작한다.
+코드, 수식, URL, 링크 대상은 제외한다. 호응 검사는 물리적인 줄을 넘지 않으며
+인용·괄호·의문문은 문맥 검토로 보완한다.
+
+형태소 분석기가 없으면 `grammar.status`는 `skipped`다. 비문 검사에는
+`uv tool install --reinstall '패키지경로[pos]'`처럼 `pos` 추가 의존성이 필요하다.
+개발 체크아웃에서는 `uv sync --extra pos`로 준비한다.
+`--fail-on-finding`은 문체 또는 비문 검사에서 발견 사항이 있으면 종료 코드 1을 반환한다.
 
 ## 2. 기계적 교정
 
@@ -31,7 +55,8 @@ Tier A 14개 규칙만 적용된다. 3·6·7·15·17·19·27·31·37·108·112·
 
 ## 3. 나머지 윤문
 
-`fix` 이후 다시 `detect`를 돌리면 남은 findings가 직접 고쳐야 할 항목이다.
+`fix` 이후 다시 `detect`를 돌리면 남은 `findings`와 `grammar.findings`가
+직접 검토할 항목이다. 비문 규칙과 패턴 41은 검출만 한다.
 각 finding의 `guidance`를 따르되 다음을 지킨다.
 
 - 원문의 수치·날짜·고유명사를 그대로 둔다
@@ -74,7 +99,7 @@ korean-normalizer rules
 ```
 
 `korean-normalizer` 명령이 없으면 설치되지 않은 것이다. 사용자에게
-`uv tool install ~/teammono/tmn-korean-normalizer` 를 안내하고 멈춘다.
+`uv tool install "$HOME/teammono/tmn-korean-normalizer[pos]"`를 안내하고 멈춘다.
 
 패턴 정의와 심각도 체계는 [DaleSeo/korean-skills](https://github.com/DaleSeo/korean-skills)의
 humanizer 스킬에서 가져왔다. 근거 논문은 [KatFishNet](https://arxiv.org/abs/2503.00032)이다.

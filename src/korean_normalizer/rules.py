@@ -1,7 +1,8 @@
 """규칙 정의를 로드하고 검증한다.
 
 1~40번은 DaleSeo/korean-skills humanizer 스킬에서 왔고 101번부터는 팀이
-실사용에서 찾아 덧붙였다. 출처만 다를 뿐 둘 다 자유롭게 고친다.
+실사용에서 찾아 덧붙였다. 41번은 사용자가 지정한 가운뎃점 나열 기준이다.
+출처만 다를 뿐 모두 자유롭게 고친다.
 
 정규식 규칙과 통계 규칙은 필요한 필드가 겹치지 않는다. 한 클래스에 담고
 kind 문자열로 갈라 쓰면 절반이 항상 None이 되므로 타입을 나눈다.
@@ -96,6 +97,11 @@ class RegexRule(BaseRule):
     scope: str = "document"
     count: int = 1
     exclude: re.Pattern[str] | None = None
+    include_layout: bool = False
+
+    @property
+    def sees_layout(self) -> bool:
+        return self.include_layout or super().sees_layout
 
     @property
     def tier(self) -> str:
@@ -185,6 +191,7 @@ def _regex_rule(raw: dict, common: dict, rule_id: object) -> RegexRule:
         scope=scope,
         count=int(threshold.get("count", 1)),
         exclude=_compile_optional(raw.get("exclude"), "exclude", rule_id),
+        include_layout=bool(raw.get("include_layout", False)),
     )
 
 
