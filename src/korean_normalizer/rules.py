@@ -4,10 +4,8 @@
 실사용에서 찾아 덧붙였다. 41번은 사용자가 지정한 가운뎃점 나열 기준이다.
 출처만 다를 뿐 모두 자유롭게 고친다.
 
-정규식 규칙과 통계 규칙은 필요한 필드가 겹치지 않는다. 한 클래스에 담고
-kind 문자열로 갈라 쓰면 절반이 항상 None이 되므로 타입을 나눈다.
-양쪽 다 자동 교정을 가질 수 있다. 무엇으로 판정하느냐와 고칠 수 있느냐는
-별개 문제다. 밀도로 재고 정규식으로 고치는 규칙이 있다.
+정규식, 통계 지표, 형태소 경계 검사는 필요한 필드가 달라 타입을 나눈다.
+판정 방식과 자동 교정은 별개다. 밀도로 재고 정규식으로 고치는 규칙이 있다.
 """
 
 from __future__ import annotations
@@ -20,6 +18,7 @@ from functools import lru_cache
 from importlib import resources
 
 from . import metrics
+from .matchers import MATCHERS
 
 SEVERITIES = ("S1", "S2", "S3")
 SCOPES = ("document", "paragraph")
@@ -80,6 +79,7 @@ class BaseRule:
     guidance: str
     autofix: tuple[AutoFix, ...]
     merge_fragments: bool
+    include_layout: bool
 
     @property
     def has_autofix(self) -> bool:
@@ -88,7 +88,7 @@ class BaseRule:
     @property
     def sees_layout(self) -> bool:
         """헤딩과 표 칸까지 보는 규칙인지. 검출과 교정이 같은 답을 써야 한다."""
-        return self.category in LEXICAL_CATEGORIES
+        return self.include_layout or self.category in LEXICAL_CATEGORIES
 
 
 @dataclass(frozen=True)
@@ -97,11 +97,6 @@ class RegexRule(BaseRule):
     scope: str = "document"
     count: int = 1
     exclude: re.Pattern[str] | None = None
-    include_layout: bool = False
-
-    @property
-    def sees_layout(self) -> bool:
-        return self.include_layout or super().sees_layout
 
     @property
     def tier(self) -> str:
@@ -112,6 +107,21 @@ class RegexRule(BaseRule):
     def kind(self) -> str:
         """표시·직렬화용 이름. 분기는 타입으로 한다."""
         return "regex"
+
+
+@dataclass(frozen=True)
+class SpanRule(BaseRule):
+    matcher: str
+    scope: str = "document"
+    count: int = 1
+
+    @property
+    def tier(self) -> str:
+        return "A" if self.autofix else "C"
+
+    @property
+    def kind(self) -> str:
+        return "span"
 
 
 @dataclass(frozen=True)
@@ -130,7 +140,7 @@ class MetricRule(BaseRule):
         return "metric"
 
 
-Rule = RegexRule | MetricRule
+Rule = RegexRule | MetricRule | SpanRule
 
 
 def _compile(value: str, field_name: str, rule_id: object) -> re.Pattern[str]:
@@ -166,6 +176,7 @@ def _common(raw: dict, category: str, rule_id: object) -> dict:
         "guidance": _require(raw, "guidance", rule_id),
         "autofix": _autofix(raw, rule_id),
         "merge_fragments": bool(raw.get("merge_fragments", False)),
+        "include_layout": bool(raw.get("include_layout", False)),
     }
 
 
@@ -191,7 +202,22 @@ def _regex_rule(raw: dict, common: dict, rule_id: object) -> RegexRule:
         scope=scope,
         count=int(threshold.get("count", 1)),
         exclude=_compile_optional(raw.get("exclude"), "exclude", rule_id),
-        include_layout=bool(raw.get("include_layout", False)),
+    )
+
+
+def _span_rule(raw: dict, common: dict, rule_id: object) -> SpanRule:
+    name = _require(raw, "matcher", rule_id)
+    if name not in MATCHERS:
+        raise RuleError(f"rule {rule_id}: unknown matcher '{name}'")
+    threshold = raw.get("threshold", {})
+    scope = threshold.get("scope", "document")
+    if scope not in SCOPES:
+        raise RuleError(f"rule {rule_id}: unknown scope '{scope}'")
+    return SpanRule(
+        **common,
+        matcher=name,
+        scope=scope,
+        count=int(threshold.get("count", 1)),
     )
 
 
@@ -224,6 +250,8 @@ def build_rule(raw: dict, category: str) -> Rule:
         return _regex_rule(raw, common, rule_id)
     if kind == "metric":
         return _metric_rule(raw, common, rule_id)
+    if kind == "span":
+        return _span_rule(raw, common, rule_id)
     raise RuleError(f"rule {rule_id}: unknown kind '{kind}'")
 
 

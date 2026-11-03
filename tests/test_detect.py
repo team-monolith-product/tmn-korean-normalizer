@@ -293,3 +293,76 @@ def test_grammar_findings_do_not_change_ai_style_grade():
     assert report.counts == {"S1": 0, "S2": 0, "S3": 0}
     assert report.grammar.counts == {"error": 1, "review": 0}
     assert report.to_dict()["grammar"]["findings"][0]["rule_id"] == "G001"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "모집 페이지 · 홍보 자료 · 채널 가이드",
+        "모집 · 사전교육 · 당일 운영 · 심사 · 산출물 · 보도",
+        "대입 포트폴리오·진로 활동 증빙·학교 성과보고",
+        "심사 진행 지원 · 결과 정리 · 수상작 발표 자료",
+        "신청자 검토 · 팀 빌딩 · 직원 교육",
+        "자료 수집ㆍ홍보 자료ㆍ심사 진행",
+    ],
+)
+def test_multiword_middle_dot_items_form_one_complete_sample(text):
+    finding = next(f for f in analyze(text).findings if f.rule_id == 41)
+    assert finding.count == 1
+    assert len(finding.samples) == 1
+    sample = finding.samples[0]
+    assert text[sample.start : sample.end] == text
+
+
+def test_middle_dot_sample_excludes_surrounding_predicates():
+    text = "학교는 모집 페이지 · 홍보 자료 · 채널 가이드를 제공합니다."
+    finding = next(f for f in analyze(text).findings if f.rule_id == 41)
+    assert finding.count == 1
+    sample = finding.samples[0]
+    assert text[sample.start : sample.end] == "모집 페이지 · 홍보 자료 · 채널 가이드를"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "교원·학생과 학교·교육청",
+        "기획·개발을 마치고 운영·심사",
+        "사과·배, 포도·귤",
+    ],
+)
+def test_separate_pairs_do_not_become_a_multiword_list(text):
+    assert 41 not in ids_of(text)
+
+
+def test_multiword_lists_separated_by_a_conjunction_keep_their_own_samples():
+    text = "모집 페이지 · 홍보 자료 · 채널 가이드와 심사 진행 · 결과 정리 · 수상작 발표"
+    finding = next(f for f in analyze(text).findings if f.rule_id == 41)
+    assert finding.count == 2
+    assert [text[s.start : s.end] for s in finding.samples] == [
+        "모집 페이지 · 홍보 자료 · 채널 가이드와",
+        "심사 진행 · 결과 정리 · 수상작 발표",
+    ]
+
+
+def test_missing_analyzer_skips_middle_dot_rule_explicitly(monkeypatch):
+    from korean_normalizer import matchers
+
+    monkeypatch.setattr(matchers, "get_analyzer", lambda: None)
+    report = analyze("모집 페이지 · 홍보 자료 · 채널 가이드")
+    assert 41 not in {finding.rule_id for finding in report.findings}
+    assert report.skipped_rules == ("41:middle_dot_enumeration",)
+    assert report.to_dict()["skipped_rules"] == ["41:middle_dot_enumeration"]
+
+
+def test_span_rule_preserves_offsets_and_paragraph_thresholds():
+    from dataclasses import replace
+
+    from korean_normalizer.rules import load_rules
+
+    rule = next(rule for rule in load_rules() if rule.id == 41)
+    text = "첫 문단입니다.\n\n모집 페이지 · 홍보 자료 · 채널 가이드"
+    report = analyze(text, (replace(rule, scope="paragraph"),))
+    finding = report.findings[0]
+    assert finding.location.index == 1
+    sample = finding.samples[0]
+    assert text[sample.start : sample.end] == "모집 페이지 · 홍보 자료 · 채널 가이드"

@@ -147,3 +147,14 @@ def test_detect_rejects_non_utf8_without_a_traceback(tmp_path):
     path.write_bytes(b"\xff\xfe")
     with pytest.raises(SystemExit, match="입력을 읽을 수 없습니다"):
         main(["detect", str(path)])
+
+
+def test_detect_explains_when_middle_dot_check_is_skipped(monkeypatch, capsys):
+    from korean_normalizer import matchers
+
+    monkeypatch.setattr(matchers, "get_analyzer", lambda: None)
+    monkeypatch.setattr(
+        "sys.stdin", _FakeStdin("모집 페이지 · 홍보 자료 · 채널 가이드")
+    )
+    assert main(["detect"]) == 0
+    assert "41:middle_dot_enumeration" in capsys.readouterr().out

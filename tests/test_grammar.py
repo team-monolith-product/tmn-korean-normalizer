@@ -128,3 +128,16 @@ def test_does_not_borrow_negation_from_another_line():
         finding.rule_id
         for finding in analyze("민수밖에 왔다.\n영희는 안 왔다.").findings
     ] == ["G002"]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "시리즈형은 정규 · 연계학기, 종일 · 집중형은 비교과 · 캡스톤 · 동아리 "
+        "트랙으로 기존 프로그램과 결합 가능합니다.",
+        "교과와 비교과 프로그램을 함께 운영합니다.",
+        "치과 · 외과 · 내과 실습을 지원합니다.",
+    ],
+)
+def test_lexical_word_endings_are_not_mistaken_for_particles(text):
+    assert analyze(text).findings == ()

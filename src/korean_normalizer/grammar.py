@@ -129,6 +129,18 @@ def _check_particles(
             for token in suffix
         )
         if not recognized:
+            standalone = kiwi.tokenize(word[0])
+            boundary = len(stem)
+            if any(
+                token.start < boundary < _token_end(token)
+                and _tag(token) in {"NNG", "NNB", "NP", "NR"}
+                and kiwi.morpheme(token.id).form == token.form
+                for token in standalone
+            ):
+                # 조사로 분석되지 않은 후보는 단독 분석으로 재확인한다.
+                # '비교 + 과'는 등록 명사 '교과'의 내부다. 미등록어의
+                # 기본 형태는 빈 문자열이므로 '산로'의 검토 후보는 유지한다.
+                continue
             # Ill-formed particles are often tagged as nouns/verbs. Confirm that
             # the corrected surface can be analyzed as a nominal + particle,
             # and retain it only as a review candidate.

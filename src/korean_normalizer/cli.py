@@ -81,6 +81,10 @@ def _render_report(report: Report) -> str:
             "표본 부족 또는 의존성 없음으로 건너뛴 지표: "
             + ", ".join(report.skipped_metrics)
         )
+    if report.skipped_rules:
+        lines.append(
+            "형태소 분석기 없음으로 건너뛴 규칙: " + ", ".join(report.skipped_rules)
+        )
     return "\n".join(lines)
 
 
