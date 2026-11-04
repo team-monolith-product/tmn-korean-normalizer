@@ -5,7 +5,10 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 
 from . import metrics
-from .rules import MetricRule, RegexRule, Rule, load_rules
+from .grammar import GrammarReport
+from .grammar import analyze_document as check_grammar
+from .matchers import MATCHERS
+from .rules import MetricRule, RegexRule, Rule, SpanRule, load_rules
 from .segment import Document
 
 MAX_SAMPLES = 5
@@ -49,7 +52,9 @@ class Report:
     grade_reason: str
     counts: dict[str, int]
     findings: tuple[Finding, ...]
+    grammar: GrammarReport
     skipped_metrics: tuple[str, ...] = ()
+    skipped_rules: tuple[str, ...] = ()
 
     def to_dict(self) -> dict:
         return {
@@ -57,7 +62,9 @@ class Report:
             "grade_reason": self.grade_reason,
             "counts": self.counts,
             "skipped_metrics": list(self.skipped_metrics),
+            "skipped_rules": list(self.skipped_rules),
             "findings": [asdict(finding) for finding in self.findings],
+            "grammar": self.grammar.to_dict(),
         }
 
 
@@ -67,8 +74,15 @@ def _snippet(source: str, start: int, end: int) -> str:
     return " ".join(source[left:right].split())
 
 
-def _matches_in(rule: RegexRule, haystack: str, offset: int) -> list[tuple[int, int]]:
+def _matches_in(
+    rule: RegexRule | SpanRule, haystack: str, offset: int
+) -> list[tuple[int, int]] | None:
     """매치 구간을 원문 좌표로 옮겨 반환한다."""
+    if isinstance(rule, SpanRule):
+        spans = MATCHERS[rule.matcher](haystack)
+        if spans is None:
+            return None
+        return [(start + offset, end + offset) for start, end in spans]
     return [
         (match.start() + offset, match.end() + offset)
         for match in rule.pattern.finditer(haystack)
@@ -76,31 +90,37 @@ def _matches_in(rule: RegexRule, haystack: str, offset: int) -> list[tuple[int, 
     ]
 
 
-def _haystack(rule: RegexRule, document: Document) -> str:
-    """어휘 규칙만 헤딩을 본다. 문장부호·구조 규칙에서 헤딩은 관습이 다르다."""
+def _haystack(rule: RegexRule | SpanRule, document: Document) -> str:
+    """규칙의 레이아웃 포함 여부에 따라 검출 문자열을 고른다."""
     return document.scrubbed if rule.sees_layout else document.prose
 
 
-def _regex_findings(rule: RegexRule, document: Document) -> list[Finding]:
+def _pattern_findings(
+    rule: RegexRule | SpanRule, document: Document
+) -> list[Finding] | None:
     haystack = _haystack(rule, document)
     if rule.scope == "document":
         spans = _matches_in(rule, haystack, 0)
+        if spans is None:
+            return None
         if len(spans) < rule.count:
             return []
-        return [_regex_finding(rule, document.source, spans, None)]
+        return [_matched_finding(rule, document.source, spans, None)]
 
     findings = []
     for index, paragraph in enumerate(document.paragraphs):
         chunk = haystack[paragraph.start : paragraph.end]
         spans = _matches_in(rule, chunk, paragraph.start)
+        if spans is None:
+            return None
         if len(spans) >= rule.count:
             location = Location(index=index, start=paragraph.start, end=paragraph.end)
-            findings.append(_regex_finding(rule, document.source, spans, location))
+            findings.append(_matched_finding(rule, document.source, spans, location))
     return findings
 
 
-def _regex_finding(
-    rule: RegexRule,
+def _matched_finding(
+    rule: RegexRule | SpanRule,
     source: str,
     spans: list[tuple[int, int]],
     location: Location | None,
@@ -160,9 +180,14 @@ def analyze_document(
 
     findings: list[Finding] = []
     skipped: list[str] = []
+    skipped_rules: list[str] = []
     for rule in rules:
-        if isinstance(rule, RegexRule):
-            findings.extend(_regex_findings(rule, document))
+        if isinstance(rule, (RegexRule, SpanRule)):
+            matched = _pattern_findings(rule, document)
+            if matched is None:
+                skipped_rules.append(f"{rule.id}:{rule.matcher}")
+            else:
+                findings.extend(matched)
             continue
         value = metrics.compute(rule.metric, context)
         if value is None:
@@ -181,5 +206,7 @@ def analyze_document(
         grade_reason=reason,
         counts=counts,
         findings=tuple(findings),
+        grammar=check_grammar(document),
         skipped_metrics=tuple(skipped),
+        skipped_rules=tuple(skipped_rules),
     )

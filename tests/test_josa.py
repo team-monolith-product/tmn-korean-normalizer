@@ -27,3 +27,9 @@ def test_keeps_unknown_or_unjudgeable_josa():
     assert agree("사용자", "에서") == "에서"
     assert agree("API", "이") == "이"
     assert agree("사용자", "") == ""
+
+
+def test_ro_after_rieul_is_not_euro():
+    assert agree("길", "으로") == "로"
+    assert agree("서울", "로") == "로"
+    assert agree("닭", "로") == "으로"

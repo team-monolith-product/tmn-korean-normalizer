@@ -6,7 +6,7 @@ from korean_normalizer.rules import MetricRule, RuleError, build_rule, load_rule
 
 TIER_A = {3, 6, 7, 15, 17, 19, 27, 31, 37, 108, 112, 113, 114, 117}
 # 11·12·13은 논문에 없거나 길이를 재고 있어 뺐다. tools/pos_ngram_check.py 참조.
-BORROWED_IDS = set(range(1, 41)) - {11, 12, 13, 38}
+BORROWED_IDS = set(range(1, 42)) - {11, 12, 13, 38}
 TEAM_IDS = {
     101,
     102,
@@ -154,7 +154,7 @@ def test_autofix_does_not_depend_on_the_rule_kind():
 
 def test_kind_is_derived_from_the_type():
     kinds = {rule.kind for rule in load_rules()}
-    assert kinds == {"regex", "metric"}
+    assert kinds == {"regex", "metric", "span"}
 
 
 @pytest.mark.parametrize(
@@ -200,7 +200,7 @@ def test_tier_matches_the_documented_taxonomy():
     for rule in load_rules():
         by_tier.setdefault(rule.tier, set()).add(rule.id)
     assert by_tier["A"] == TIER_A
-    analyzer_rules = {2, 118, 119}
+    analyzer_rules = {2, 41, 118, 119}
     assert by_tier["C"] == analyzer_rules
     assert by_tier["B"] == (BORROWED_IDS | TEAM_IDS) - TIER_A - analyzer_rules
 
@@ -216,3 +216,34 @@ def test_hype_rule_is_not_duplicated():
     """38번 hype 군집은 105번 밀도 규칙으로 합쳤다."""
     assert 38 not in {rule.id for rule in load_rules()}
     assert 105 in {rule.id for rule in load_rules()}
+
+
+def test_rejects_unknown_span_matcher():
+    with pytest.raises(RuleError, match="unknown matcher"):
+        build_rule(
+            {
+                "id": 999,
+                "name": "x",
+                "severity": "S2",
+                "kind": "span",
+                "matcher": "typo",
+                "guidance": "g",
+            },
+            "test",
+        )
+
+
+def test_rejects_unknown_span_scope():
+    with pytest.raises(RuleError, match="unknown scope"):
+        build_rule(
+            {
+                "id": 999,
+                "name": "x",
+                "severity": "S2",
+                "kind": "span",
+                "matcher": "middle_dot_enumeration",
+                "guidance": "g",
+                "threshold": {"scope": "chapter"},
+            },
+            "test",
+        )

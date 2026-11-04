@@ -18,11 +18,10 @@ def _read(path: str | None) -> str:
     if path is None or path == "-":
         return sys.stdin.read()
     try:
-        return Path(path).read_text(encoding="utf-8")
-    except OSError as error:
-        raise SystemExit(
-            f"입력을 읽을 수 없습니다: {path} ({error.strerror})"
-        ) from error
+        with Path(path).open(encoding="utf-8", newline="") as stream:
+            return stream.read()
+    except (OSError, UnicodeError) as error:
+        raise SystemExit(f"입력을 읽을 수 없습니다: {path} ({error})") from error
 
 
 def _render_finding(finding: Finding) -> list[str]:
@@ -56,14 +55,35 @@ def _render_report(report: Report) -> str:
         "",
     ]
     if not report.findings:
-        lines.append("검출된 패턴이 없습니다.")
+        lines.append("검출된 AI 문체 패턴이 없습니다.")
     for finding in report.findings:
         lines.extend(_render_finding(finding))
+    lines.append("")
+    if report.grammar.skipped:
+        lines.append("비문 검사 건너뜀: kiwipiepy가 필요합니다 (pos 추가 의존성).")
+    else:
+        counts = report.grammar.counts
+        lines.append(
+            f"비문 검사: 오류 {counts['error']}건, 검토 후보 {counts['review']}건"
+        )
+        for finding in report.grammar.findings:
+            lines.extend(
+                [
+                    f"[{finding.severity}] {finding.rule_id} "
+                    f"{finding.line}행 {finding.column}열: {finding.text}",
+                    f"    이유: {finding.message}",
+                    f"    수정 후보: {finding.suggestion}",
+                ]
+            )
     if report.skipped_metrics:
         lines.append("")
         lines.append(
             "표본 부족 또는 의존성 없음으로 건너뛴 지표: "
             + ", ".join(report.skipped_metrics)
+        )
+    if report.skipped_rules:
+        lines.append(
+            "형태소 분석기 없음으로 건너뛴 규칙: " + ", ".join(report.skipped_rules)
         )
     return "\n".join(lines)
 
@@ -74,7 +94,8 @@ def _detect(args: argparse.Namespace) -> int:
         print(json.dumps(report.to_dict(), ensure_ascii=False, indent=2))
     else:
         print(_render_report(report))
-    return 1 if args.fail_on_finding and report.findings else 0
+    found = bool(report.findings or report.grammar.findings)
+    return 1 if args.fail_on_finding and found else 0
 
 
 def _fix(args: argparse.Namespace) -> int:

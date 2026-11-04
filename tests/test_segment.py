@@ -114,3 +114,11 @@ def test_dates_and_versions_do_not_end_a_sentence():
 
 def test_real_sentence_ends_still_split():
     assert len(split_sentences("끝났다. 다음이다. 마지막이다.")) == 3
+
+
+def test_code_delimiters_inside_fences_do_not_hide_following_prose():
+    text = "~~~\n`literal\n~~~\n수집·정리·검토를 한다. `변수`"
+    scrubbed = scrub(text, build_mask(text))
+    assert "수집·정리·검토를 한다." in scrubbed
+    assert "literal" not in scrubbed
+    assert "변수" not in scrubbed

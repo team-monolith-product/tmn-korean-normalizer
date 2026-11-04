@@ -37,7 +37,7 @@ def test_detect_reports_clean_text(tmp_path, capsys):
     path = tmp_path / "clean.md"
     path.write_text("어제 비가 왔다. 우산을 챙겼다.\n", encoding="utf-8")
     assert main(["detect", str(path), "--fail-on-finding"]) == 0
-    assert "검출된 패턴이 없습니다." in capsys.readouterr().out
+    assert "검출된 AI 문체 패턴이 없습니다." in capsys.readouterr().out
 
 
 def test_detect_reads_stdin(monkeypatch, capsys):
@@ -98,3 +98,63 @@ def test_shipped_example_is_readable(capsys):
     example = Path(__file__).resolve().parent.parent / "examples" / "ai-sample.md"
     assert main(["detect", str(example)]) == 0
     assert "자연도 등급: C" in capsys.readouterr().out
+
+
+def test_detect_includes_grammar_in_json(monkeypatch, capsys):
+    monkeypatch.setattr("sys.stdin", _FakeStdin("책를 읽었다."))
+    assert main(["detect", "--format", "json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["grammar"]["counts"] == {"error": 1, "review": 0}
+    assert payload["grammar"]["findings"][0]["text"] == "를"
+
+
+def test_detect_text_includes_grammar_and_fail_status(monkeypatch, capsys):
+    monkeypatch.setattr("sys.stdin", _FakeStdin("내 목표는 개발자가 되고 싶다."))
+    assert main(["detect", "--fail-on-finding"]) == 1
+    output = capsys.readouterr().out
+    assert "G003" in output
+    assert "검토 후보 1건" in output
+
+
+def test_fix_preserves_grammar_review_candidates(monkeypatch, capsys):
+    text = "내 목표는 개발자가 되고 싶다."
+    monkeypatch.setattr("sys.stdin", _FakeStdin(text))
+    assert main(["fix"]) == 0
+    assert capsys.readouterr().out == text
+
+
+def test_detect_explains_when_grammar_is_skipped(monkeypatch, capsys):
+    from korean_normalizer import grammar
+
+    monkeypatch.setattr(grammar, "get_analyzer", lambda: None)
+    monkeypatch.setattr("sys.stdin", _FakeStdin("책를 읽었다."))
+    assert main(["detect"]) == 0
+    assert "비문 검사 건너뜀" in capsys.readouterr().out
+
+
+def test_detect_preserves_file_offsets_with_crlf(tmp_path, capsys):
+    text = "설명입니다.\r\n🙂 책를 읽었다.\r\n"
+    path = tmp_path / "crlf.md"
+    path.write_bytes(text.encode("utf-8"))
+    assert main(["detect", str(path), "--format", "json"]) == 0
+    finding = json.loads(capsys.readouterr().out)["grammar"]["findings"][0]
+    assert (finding["line"], finding["column"]) == (2, 4)
+    assert text[finding["start"] : finding["end"]] == "를"
+
+
+def test_detect_rejects_non_utf8_without_a_traceback(tmp_path):
+    path = tmp_path / "invalid.md"
+    path.write_bytes(b"\xff\xfe")
+    with pytest.raises(SystemExit, match="입력을 읽을 수 없습니다"):
+        main(["detect", str(path)])
+
+
+def test_detect_explains_when_middle_dot_check_is_skipped(monkeypatch, capsys):
+    from korean_normalizer import matchers
+
+    monkeypatch.setattr(matchers, "get_analyzer", lambda: None)
+    monkeypatch.setattr(
+        "sys.stdin", _FakeStdin("모집 페이지 · 홍보 자료 · 채널 가이드")
+    )
+    assert main(["detect"]) == 0
+    assert "41:middle_dot_enumeration" in capsys.readouterr().out

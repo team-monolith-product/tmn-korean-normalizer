@@ -11,9 +11,9 @@ import statistics
 from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
-from functools import lru_cache
 from itertools import pairwise
 
+from .morphology import get_analyzer
 from .segment import PLACEHOLDER, Segment, split_sentences
 
 MIN_SENTENCES = 3
@@ -232,16 +232,6 @@ def _subject_of(sentence: str) -> str | None:
     return match.group(1) if match else None
 
 
-@lru_cache(maxsize=1)
-def _kiwi():
-    """형태소 분석기는 로딩이 무거워 한 번만 만든다. 없으면 None."""
-    try:
-        from kiwipiepy import Kiwi
-    except ImportError:
-        return None
-    return Kiwi()
-
-
 @metric("hype_density")
 def _hype_density(context: MetricContext) -> float | None:
     """어절 100개당 과장 어휘 수.
@@ -257,7 +247,7 @@ def _hype_density(context: MetricContext) -> float | None:
 
 def _tokens_per_sentence(text: str) -> list[list[str]] | None:
     """문장별 형태소 표면형. 분석기가 없으면 None."""
-    analyzer = _kiwi()
+    analyzer = get_analyzer()
     if analyzer is None:
         return None
     out = []

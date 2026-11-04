@@ -7,7 +7,7 @@ license = { file = "LICENSE" }
 dependencies = []
 
 [project.optional-dependencies]
-pos = ["kiwipiepy>=0.20"]
+pos = ["kiwipiepy>=0.24,<0.25"]
 
 [project.scripts]
 korean-normalizer = "korean_normalizer.cli:main"
